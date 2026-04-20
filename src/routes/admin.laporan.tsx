@@ -13,7 +13,11 @@ export const Route = createFileRoute("/admin/laporan")({
   component: LaporanPage,
 });
 
-type Row = { nama_guru: string; mapel: string; total_hadir: number; total_terlambat: number; total_tidak_hadir: number; total_kosong: number };
+type Row = { nama_guru: string; nip: string; mapel: string; total_hadir: number; total_terlambat: number; total_tidak_hadir: number; total_kosong: number };
+
+// NIP Admin (sesuai data dummy USERS — admin)
+const ADMIN_NIP = "196501011990031001";
+const ADMIN_NAMA = "Administrator";
 
 function LaporanPage() {
   const today = new Date().toISOString().slice(0, 10);
