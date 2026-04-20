@@ -1,134 +1,197 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Pencil } from "lucide-react";
-import { apiGet, apiPost } from "@/lib/api";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Pencil, Calendar } from "lucide-react";
+import { useJadwal, type JadwalSlot } from "@/hooks/useJadwal";
+import { useKelas } from "@/hooks/useKelas";
+import { useGuru } from "@/hooks/useGuru";
+import { SmartLoader } from "@/components/SmartLoader";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/jadwal")({
   component: JadwalPage,
 });
 
 const HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
-const maxJam = (h: string) => (h === "Jumat" ? 6 : 9);
+type Hari = (typeof HARI)[number];
 
-type Kelas = { id: string; nama_kelas: string };
-type Guru = { id: string; nama: string; mapel: string; aktif: boolean };
-type Slot = { id: string; hari: string; jam_ke: number; guru_id: string; nama_guru: string; mapel: string };
+/** Jumat has a shorter school day */
+const maxJam = (h: Hari) => (h === "Jumat" ? 6 : 9);
+
+type EditState = { hari: Hari; jam_ke: number; guru_id: string; mapel: string };
 
 function JadwalPage() {
-  const [kelas, setKelas] = useState<Kelas[]>([]);
-  const [guru, setGuru] = useState<Guru[]>([]);
+  const { kelas: kelasList, isLoading: isLoadingKelas } = useKelas();
+  const { gurus, isLoading: isLoadingGuru } = useGuru();
+
   const [kelasId, setKelasId] = useState("");
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const [edit, setEdit] = useState<{ hari: string; jam_ke: number; guru_id: string; mapel: string } | null>(null);
+  const { slots, isLoading: isLoadingSlots, isSaving, setSlot } = useJadwal(kelasId);
 
-  useEffect(() => {
-    apiGet("getKelas").then((r) => { if (r.success) { setKelas(r.data); setKelasId(r.data[0]?.id || ""); }});
-    apiGet("getGuru").then((r) => r.success && setGuru(r.data));
-  }, []);
+  const [edit, setEdit] = useState<EditState | null>(null);
 
-  useEffect(() => {
-    if (!kelasId) return;
-    // BACKEND DEV: getJadwal
-    apiGet("getJadwal", { kelas_id: kelasId }).then((r) => r.success && setSlots(r.data));
-  }, [kelasId]);
+  const cellOf = (h: Hari, j: number): JadwalSlot | undefined =>
+    slots.find((s) => s.hari === h && s.jam_ke === j);
 
-  const cellOf = (h: string, j: number) => slots.find((s) => s.hari === h && s.jam_ke === j);
-
-  const save = async () => {
-    if (!edit) return;
-    // BACKEND DEV: setJadwal
-    const r = await apiPost("setJadwal", { kelas_id: kelasId, ...edit });
-    if (r.success) {
-      toast.success("Jadwal disimpan");
+  const handleSave = async () => {
+    if (!edit || !kelasId || !edit.guru_id) return;
+    try {
+      await setSlot({ kelas_id: kelasId, ...edit });
       setEdit(null);
-      const j = await apiGet("getJadwal", { kelas_id: kelasId });
-      if (j.success) setSlots(j.data);
+    } catch {
+      // Error toast handled by hook
     }
   };
 
+  const activeGurus = gurus.filter((g) => g.aktif);
+  const isReady = !isLoadingKelas && !isLoadingGuru;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6 animate-in fade-in duration-700">
       <div>
-        <h1 className="text-2xl font-bold">Jadwal Pelajaran</h1>
-        <p className="text-sm text-muted-foreground">Atur jadwal guru per kelas</p>
+        <h1 className="text-2xl font-black tracking-tight">Jadwal Pelajaran</h1>
+        <p className="text-sm text-muted-foreground mt-1">Atur jadwal guru per kelas — klik sel untuk mengedit</p>
       </div>
 
       <Card className="p-4">
-        <Label>Pilih Kelas</Label>
-        <Select value={kelasId} onValueChange={setKelasId}>
-          <SelectTrigger className="w-full sm:w-64 mt-1"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {kelas.map((k) => <SelectItem key={k.id} value={k.id}>{k.nama_kelas}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <Label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pilih Kelas</Label>
+        <div className="flex gap-3 mt-2 flex-wrap">
+          <Select
+            value={kelasId}
+            onValueChange={(v) => setKelasId(v)}
+            disabled={isLoadingKelas}
+          >
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue placeholder={isLoadingKelas ? "Memuat kelas…" : "Pilih kelas"} />
+            </SelectTrigger>
+            <SelectContent>
+              {kelasList.map((k) => (
+                <SelectItem key={k.id} value={k.id}>{k.nama_kelas}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </Card>
 
-      <Card className="overflow-x-auto">
-        <table className="w-full text-xs sm:text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="p-2 text-left w-16">Jam</th>
-              {HARI.map((h) => <th key={h} className="p-2 text-left min-w-[160px]">{h}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {Array.from({ length: 9 }, (_, i) => i + 1).map((j) => (
-              <tr key={j} className="border-t">
-                <td className="p-2 font-semibold bg-accent/30">Jam {j}</td>
-                {HARI.map((h) => {
-                  if (j > maxJam(h)) return <td key={h} className="p-2 text-muted-foreground/40 italic">—</td>;
-                  const c = cellOf(h, j);
-                  return (
-                    <td key={h} className="p-2">
-                      <button
-                        onClick={() => setEdit({ hari: h, jam_ke: j, guru_id: c?.guru_id || "", mapel: c?.mapel || "" })}
-                        className="text-left w-full p-2 rounded-md hover:bg-accent transition group"
-                      >
-                        {c ? (
-                          <>
-                            <p className="font-medium truncate">{c.nama_guru}</p>
-                            <p className="text-xs text-muted-foreground truncate">{c.mapel}</p>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground italic text-xs">+ Atur</span>
-                        )}
-                        <Pencil className="h-3 w-3 inline opacity-0 group-hover:opacity-50 ml-1" />
-                      </button>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Card>
-
-      <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Atur Jadwal — {edit?.hari} Jam ke-{edit?.jam_ke}</DialogTitle></DialogHeader>
-          {edit && (
-            <div className="space-y-3">
-              <div>
-                <Label>Guru</Label>
-                <Select value={edit.guru_id} onValueChange={(v) => {
-                  const g = guru.find((x) => x.id === v);
-                  setEdit({ ...edit, guru_id: v, mapel: edit.mapel || g?.mapel || "" });
-                }}>
-                  <SelectTrigger><SelectValue placeholder="Pilih guru" /></SelectTrigger>
-                  <SelectContent>{guru.filter((g) => g.aktif).map((g) => <SelectItem key={g.id} value={g.id}>{g.nama}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div><Label>Mata Pelajaran</Label><Input value={edit.mapel} onChange={(e) => setEdit({ ...edit, mapel: e.target.value })} /></div>
+      {!kelasId ? (
+        <Card className="p-12 text-center text-muted-foreground">
+          <Calendar className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="font-medium">Pilih kelas terlebih dahulu</p>
+          <p className="text-xs mt-1">Jadwal pelajaran akan ditampilkan di sini.</p>
+        </Card>
+      ) : (
+        <Card className="overflow-hidden">
+          {isLoadingSlots && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-primary/5 border-b text-xs text-primary font-medium">
+              <SmartLoader size="sm" /> Memuat jadwal…
             </div>
           )}
-          <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Batal</Button><Button onClick={save}>Simpan</Button></DialogFooter>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs sm:text-sm">
+              <thead className="bg-muted/60">
+                <tr>
+                  <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground w-16">Jam</th>
+                  {HARI.map((h) => (
+                    <th key={h} className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground min-w-[160px]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 9 }, (_, i) => i + 1).map((j) => (
+                  <tr key={j} className="border-t">
+                    <td className="p-3 font-black text-xs bg-muted/30 text-center">{j}</td>
+                    {HARI.map((h) => {
+                      if (j > maxJam(h)) {
+                        return <td key={h} className="p-3 bg-muted/10"><div className="text-muted-foreground/30 text-center text-lg">—</div></td>;
+                      }
+                      const cell = cellOf(h, j);
+                      return (
+                        <td key={h} className="p-2">
+                          <button
+                            onClick={() => setEdit({ hari: h, jam_ke: j, guru_id: cell?.guru_id || "", mapel: cell?.mapel || "" })}
+                            className={cn(
+                              "text-left w-full p-2 rounded-lg hover:bg-primary/5 hover:border-primary/20 border transition-all group relative",
+                              cell ? "border-border bg-card" : "border-dashed border-border/40 bg-transparent"
+                            )}
+                          >
+                            {cell ? (
+                              <>
+                                <p className="font-semibold truncate text-xs leading-tight">{cell.nama_guru}</p>
+                                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{cell.mapel}</p>
+                              </>
+                            ) : (
+                              <span className="text-muted-foreground/40 text-[10px] italic">+ Atur</span>
+                            )}
+                            <Pencil className="h-2.5 w-2.5 absolute top-2 right-2 opacity-0 group-hover:opacity-40 transition-opacity" />
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* Edit Slot Dialog */}
+      <Dialog open={!!edit} onOpenChange={(open) => !open && setEdit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Atur Jadwal — {edit?.hari}, Jam ke-{edit?.jam_ke}</DialogTitle>
+            <DialogDescription>
+              Pilih guru yang mengajar pada slot ini. Mata pelajaran akan terisi otomatis sesuai guru.
+            </DialogDescription>
+          </DialogHeader>
+
+          {edit && (
+            <div className="space-y-4 py-1">
+              <div className="space-y-1.5">
+                <Label>Guru</Label>
+                <Select
+                  value={edit.guru_id}
+                  onValueChange={(v) => {
+                    const selected = gurus.find((x) => x.id === v);
+                    setEdit({ ...edit, guru_id: v, mapel: edit.mapel || selected?.mapel || "" });
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={isLoadingGuru ? "Memuat guru…" : "Pilih guru"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {activeGurus.map((g) => (
+                      <SelectItem key={g.id} value={g.id}>
+                        <span className="font-medium">{g.nama}</span>
+                        <span className="text-muted-foreground ml-2 text-xs">— {g.mapel}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="slot-mapel">Mata Pelajaran</Label>
+                <Input
+                  id="slot-mapel"
+                  value={edit.mapel}
+                  onChange={(e) => setEdit({ ...edit, mapel: e.target.value })}
+                  placeholder="Nama mata pelajaran"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEdit(null)}>Batal</Button>
+            <Button onClick={handleSave} disabled={isSaving || !edit?.guru_id}>
+              {isSaving ? <><SmartLoader size="sm" className="mr-2" /> Menyimpan…</> : "Simpan Jadwal"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
