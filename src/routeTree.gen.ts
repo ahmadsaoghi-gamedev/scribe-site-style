@@ -9,38 +9,160 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminPetugasRouteImport } from './routes/admin.petugas'
+import { Route as AdminLaporanRouteImport } from './routes/admin.laporan'
+import { Route as AdminJadwalRouteImport } from './routes/admin.jadwal'
+import { Route as AdminGuruRouteImport } from './routes/admin.guru'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminPetugasRoute = AdminPetugasRouteImport.update({
+  id: '/petugas',
+  path: '/petugas',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLaporanRoute = AdminLaporanRouteImport.update({
+  id: '/laporan',
+  path: '/laporan',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminJadwalRoute = AdminJadwalRouteImport.update({
+  id: '/jadwal',
+  path: '/jadwal',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminGuruRoute = AdminGuruRouteImport.update({
+  id: '/guru',
+  path: '/guru',
+  getParentRoute: () => AdminRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/guru': typeof AdminGuruRoute
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/laporan': typeof AdminLaporanRoute
+  '/admin/petugas': typeof AdminPetugasRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/guru': typeof AdminGuruRoute
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/laporan': typeof AdminLaporanRoute
+  '/admin/petugas': typeof AdminPetugasRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/dashboard': typeof DashboardRoute
+  '/login': typeof LoginRoute
+  '/admin/guru': typeof AdminGuruRoute
+  '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/laporan': typeof AdminLaporanRoute
+  '/admin/petugas': typeof AdminPetugasRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/login'
+    | '/admin/guru'
+    | '/admin/jadwal'
+    | '/admin/laporan'
+    | '/admin/petugas'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/login'
+    | '/admin/guru'
+    | '/admin/jadwal'
+    | '/admin/laporan'
+    | '/admin/petugas'
+    | '/admin'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/login'
+    | '/admin/guru'
+    | '/admin/jadwal'
+    | '/admin/laporan'
+    | '/admin/petugas'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  DashboardRoute: typeof DashboardRoute
+  LoginRoute: typeof LoginRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,12 +170,77 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/petugas': {
+      id: '/admin/petugas'
+      path: '/petugas'
+      fullPath: '/admin/petugas'
+      preLoaderRoute: typeof AdminPetugasRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/laporan': {
+      id: '/admin/laporan'
+      path: '/laporan'
+      fullPath: '/admin/laporan'
+      preLoaderRoute: typeof AdminLaporanRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/jadwal': {
+      id: '/admin/jadwal'
+      path: '/jadwal'
+      fullPath: '/admin/jadwal'
+      preLoaderRoute: typeof AdminJadwalRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/guru': {
+      id: '/admin/guru'
+      path: '/guru'
+      fullPath: '/admin/guru'
+      preLoaderRoute: typeof AdminGuruRouteImport
+      parentRoute: typeof AdminRoute
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminGuruRoute: typeof AdminGuruRoute
+  AdminJadwalRoute: typeof AdminJadwalRoute
+  AdminLaporanRoute: typeof AdminLaporanRoute
+  AdminPetugasRoute: typeof AdminPetugasRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminGuruRoute: AdminGuruRoute,
+  AdminJadwalRoute: AdminJadwalRoute,
+  AdminLaporanRoute: AdminLaporanRoute,
+  AdminPetugasRoute: AdminPetugasRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  DashboardRoute: DashboardRoute,
+  LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
