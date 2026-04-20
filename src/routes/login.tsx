@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,15 +11,6 @@ import { SmartLoader } from "@/components/SmartLoader";
 import { LogIn, ShieldCheck, UserCheck } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  beforeLoad: () => {
-    if (typeof window !== "undefined") {
-      const s = getSession();
-      if (s) {
-        if (s.role === "admin") throw redirect({ to: "/admin" });
-        if (s.role === "petugas") throw redirect({ to: "/dashboard" });
-      }
-    }
-  },
   head: () => ({ meta: [{ title: "Otentikasi — Digital Attendance System" }] }),
   component: LoginPage,
 });
@@ -28,6 +19,15 @@ function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const s = getSession();
+    if (s) {
+      if (s.role === "admin") navigate({ to: "/admin", replace: true });
+      if (s.role === "petugas") navigate({ to: "/dashboard", replace: true });
+    }
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
