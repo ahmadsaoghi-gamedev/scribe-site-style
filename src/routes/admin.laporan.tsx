@@ -13,7 +13,11 @@ export const Route = createFileRoute("/admin/laporan")({
   component: LaporanPage,
 });
 
-type Row = { nama_guru: string; mapel: string; total_hadir: number; total_terlambat: number; total_tidak_hadir: number; total_kosong: number };
+type Row = { nama_guru: string; nip: string; mapel: string; total_hadir: number; total_terlambat: number; total_tidak_hadir: number; total_kosong: number };
+
+// NIP Admin (sesuai data dummy USERS — admin)
+const ADMIN_NIP = "196501011990031001";
+const ADMIN_NAMA = "Administrator";
 
 function LaporanPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -86,6 +90,7 @@ function LaporanPage() {
               <tr className="border-b">
                 <th className="p-2 text-left">No</th>
                 <th className="p-2 text-left">Nama Guru</th>
+                <th className="p-2 text-left">NIP</th>
                 <th className="p-2 text-left">Mapel</th>
                 <th className="p-2 text-center">Hadir</th>
                 <th className="p-2 text-center">Terlambat</th>
@@ -95,11 +100,12 @@ function LaporanPage() {
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={7} className="p-6 text-center text-muted-foreground">Belum ada data. Pilih periode lalu klik Tampilkan.</td></tr>
+                <tr><td colSpan={8} className="p-6 text-center text-muted-foreground">Belum ada data. Pilih periode lalu klik Tampilkan.</td></tr>
               ) : rows.map((r, i) => (
                 <tr key={i} className="border-b">
                   <td className="p-2">{i + 1}</td>
                   <td className="p-2">{r.nama_guru}</td>
+                  <td className="p-2 font-mono text-xs">{r.nip}</td>
                   <td className="p-2">{r.mapel}</td>
                   <td className="p-2 text-center">{r.total_hadir}</td>
                   <td className="p-2 text-center">{r.total_terlambat}</td>
@@ -110,6 +116,21 @@ function LaporanPage() {
             </tbody>
           </table>
         </Card>
+
+        {/* Tanda tangan admin (hanya tampil saat cetak) */}
+        {rows.length > 0 && (
+          <div className="hidden print:block mt-10">
+            <div className="flex justify-end">
+              <div className="text-sm text-center w-72">
+                <p>Jember, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
+                <p>Administrator,</p>
+                <div className="h-20" />
+                <p className="font-bold underline">{ADMIN_NAMA}</p>
+                <p>NIP. {ADMIN_NIP}</p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
