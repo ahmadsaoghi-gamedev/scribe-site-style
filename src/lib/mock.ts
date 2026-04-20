@@ -154,6 +154,7 @@ export async function mockHandler(action: string, _method: string, body: any) {
     case "laporanBulanan": {
       const data = GURU.filter((g) => g.aktif).map((g) => ({
         nama_guru: g.nama,
+        nip: g.nip,
         mapel: g.mapel,
         total_hadir: Math.floor(Math.random() * 20) + 10,
         total_terlambat: Math.floor(Math.random() * 5),
