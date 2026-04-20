@@ -1,0 +1,1 @@
+import{u as e}from"./useQuery-D7oAA-pP.js";import{b as s}from"./api-C2HeUBz4.js";const t=["kelas"];function n(){const r=e({queryKey:t,queryFn:async()=>{const a=await s("getKelas");return Array.isArray(a.data)?a.data:[]},staleTime:6e5});return{kelas:r.data??[],isLoading:r.isLoading,error:r.error}}export{n as u};

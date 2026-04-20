@@ -1,0 +1,1 @@
+import{u as o,r,j as a}from"./index.spa-Co8KiecJ.js";import{T as s}from"./sonner-BA9gMJPT.js";import"./index-BaXZIYBW.js";function c(){const e=o();return r.useEffect(()=>{const t=localStorage.getItem("role");e(t==="admin"?{to:"/admin",replace:!0}:t==="petugas"?{to:"/dashboard",replace:!0}:{to:"/login",replace:!0})},[e]),a.jsx(s,{})}export{c as component};
