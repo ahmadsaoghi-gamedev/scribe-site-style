@@ -1,5 +1,7 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "../router";
 
 import appCss from "../styles.css?url";
 import { InstallPrompt } from "@/components/InstallPrompt";
@@ -32,16 +34,9 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
-      { title: "Absensi Guru — MAS Wahid Hasyim" },
-      { name: "description", content: "Aplikasi absensi guru MAS Wahid Hasyim Balung Jember" },
+      { title: "Smart Sync — Institution Management" },
+      { name: "description", content: "Sistem Kehadiran Digital dengan Sinkronisasi Cerdas" },
       { name: "theme-color", content: "#16a34a" },
-      { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "apple-mobile-web-app-title", content: "AbsensiGuru" },
-      { name: "mobile-web-app-capable", content: "yes" },
-      { property: "og:title", content: "Absensi Guru MAS Wahid Hasyim" },
-      { property: "og:description", content: "Aplikasi absensi guru" },
-      { property: "og:type", content: "website" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -73,10 +68,11 @@ function RootComponent() {
   useEffect(() => {
     registerServiceWorker();
   }, []);
+
   return (
-    <>
+    <QueryClientProvider client={queryClient}>
       <Outlet />
       <InstallPrompt />
-    </>
+    </QueryClientProvider>
   );
 }

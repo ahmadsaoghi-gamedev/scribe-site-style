@@ -3,7 +3,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, Calendar, UserCog, FileBarChart, LogOut, Menu } from "lucide-react";
 import { SchoolHeader } from "@/components/SchoolHeader";
-import { clearSession, getSession } from "@/lib/auth";
+import { getSession } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -33,7 +34,7 @@ function AdminLayout() {
   const loc = useLocation();
   const [open, setOpen] = useState(false);
   const session = typeof window !== "undefined" ? getSession() : null;
-  const logout = () => { clearSession(); nav({ to: "/login" }); };
+  const { logout } = useAuth();
 
   const isIndex = loc.pathname === "/admin" || loc.pathname === "/admin/";
   // Render only the layout chrome — index content rendered via its own route file:
@@ -77,7 +78,16 @@ function AdminLayout() {
       <div className="flex-1 min-w-0">
         <header className="bg-card border-b lg:hidden p-3 flex items-center gap-2 no-print">
           <Button variant="ghost" size="icon" onClick={() => setOpen(true)}><Menu className="h-5 w-5" /></Button>
-          <SchoolHeader />
+          <SchoolHeader>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 font-bold text-xs uppercase"
+              onClick={logout}
+            >
+              <LogOut className="h-4 w-4 mr-1" />
+            </Button>
+          </SchoolHeader>
         </header>
         <main className="p-4 lg:p-6 max-w-7xl">
           <Outlet />
