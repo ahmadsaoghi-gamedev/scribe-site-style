@@ -138,6 +138,17 @@ export async function mockHandler(action: string, _method: string, body: any) {
       const sudah = Object.keys(ABSENSI).filter((k) => k.endsWith(today)).length;
       return ok({ total_guru: GURU.filter((g) => g.aktif).length, total_kelas: KELAS.length, kelas_sudah_absen: sudah });
     }
+    case "getRiwayat": {
+      const data = Object.keys(ABSENSI)
+        .filter((k) => k.startsWith(`${body.kelas_id}_`))
+        .map((k) => ({
+          tanggal: k.split("_")[1],
+          total: ABSENSI[k].length,
+          status: "Tersimpan",
+        }))
+        .sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+      return ok({ data });
+    }
     case "laporanHarian":
     case "laporanMingguan":
     case "laporanBulanan": {
