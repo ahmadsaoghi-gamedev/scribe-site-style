@@ -81,7 +81,7 @@ function LaporanPage() {
       <div className="print-area">
         <KopSurat periode={periode || "—"} />
         <Card className="overflow-x-auto print:shadow-none print:border-0">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-sticky-col min-w-[720px] print:min-w-0">
             <thead className="bg-muted print:bg-transparent">
               <tr className="border-b">
                 <th className="p-2 text-left">No</th>
