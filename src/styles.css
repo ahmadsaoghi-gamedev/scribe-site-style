@@ -137,10 +137,43 @@
     border-color: var(--color-border);
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    font-size: 15px;
   }
+
+  @media (min-width: 1024px) {
+    body { font-size: 14px; }
+  }
+
+  /* Touch-friendly tap targets on mobile */
+  @media (max-width: 640px) {
+    button,
+    [role="button"],
+    input:not([type="checkbox"]):not([type="radio"]),
+    select,
+    textarea {
+      min-height: 44px;
+    }
+  }
+}
+
+/* Sticky first column for mobile-scrollable tables */
+.table-sticky-col tbody td:first-child,
+.table-sticky-col thead th:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--color-card);
+  z-index: 1;
+  box-shadow: 1px 0 0 var(--color-border);
+}
+.table-sticky-col thead th:first-child {
+  background: var(--color-muted);
 }
 
 @media print {

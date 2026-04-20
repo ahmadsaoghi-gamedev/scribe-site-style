@@ -68,7 +68,7 @@ function PetugasPage() {
       </div>
 
       <Card className="overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm table-sticky-col min-w-[720px]">
           <thead className="bg-muted">
             <tr>
               <th className="p-3 text-left">No</th><th className="p-3 text-left">Nama</th>

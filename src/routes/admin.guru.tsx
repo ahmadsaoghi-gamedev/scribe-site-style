@@ -59,7 +59,7 @@ function GuruPage() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm table-sticky-col min-w-[640px]">
             <thead className="bg-muted">
               <tr>
                 <th className="p-3 text-left">No</th>

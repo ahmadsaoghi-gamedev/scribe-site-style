@@ -14,6 +14,8 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as DashboardRiwayatRouteImport } from './routes/dashboard.riwayat'
+import { Route as DashboardProfilRouteImport } from './routes/dashboard.profil'
 import { Route as AdminPetugasRouteImport } from './routes/admin.petugas'
 import { Route as AdminLaporanRouteImport } from './routes/admin.laporan'
 import { Route as AdminJadwalRouteImport } from './routes/admin.jadwal'
@@ -44,6 +46,16 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const DashboardRiwayatRoute = DashboardRiwayatRouteImport.update({
+  id: '/riwayat',
+  path: '/riwayat',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardProfilRoute = DashboardProfilRouteImport.update({
+  id: '/profil',
+  path: '/profil',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const AdminPetugasRoute = AdminPetugasRouteImport.update({
   id: '/petugas',
   path: '/petugas',
@@ -68,34 +80,40 @@ const AdminGuruRoute = AdminGuruRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
+  '/dashboard/profil': typeof DashboardProfilRoute
+  '/dashboard/riwayat': typeof DashboardRiwayatRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
+  '/dashboard/profil': typeof DashboardProfilRoute
+  '/dashboard/riwayat': typeof DashboardRiwayatRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
+  '/dashboard/profil': typeof DashboardProfilRoute
+  '/dashboard/riwayat': typeof DashboardRiwayatRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -109,6 +127,8 @@ export interface FileRouteTypes {
     | '/admin/jadwal'
     | '/admin/laporan'
     | '/admin/petugas'
+    | '/dashboard/profil'
+    | '/dashboard/riwayat'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -119,6 +139,8 @@ export interface FileRouteTypes {
     | '/admin/jadwal'
     | '/admin/laporan'
     | '/admin/petugas'
+    | '/dashboard/profil'
+    | '/dashboard/riwayat'
     | '/admin'
   id:
     | '__root__'
@@ -130,13 +152,15 @@ export interface FileRouteTypes {
     | '/admin/jadwal'
     | '/admin/laporan'
     | '/admin/petugas'
+    | '/dashboard/profil'
+    | '/dashboard/riwayat'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
-  DashboardRoute: typeof DashboardRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
@@ -176,6 +200,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/dashboard/riwayat': {
+      id: '/dashboard/riwayat'
+      path: '/riwayat'
+      fullPath: '/dashboard/riwayat'
+      preLoaderRoute: typeof DashboardRiwayatRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/profil': {
+      id: '/dashboard/profil'
+      path: '/profil'
+      fullPath: '/dashboard/profil'
+      preLoaderRoute: typeof DashboardProfilRouteImport
+      parentRoute: typeof DashboardRoute
     }
     '/admin/petugas': {
       id: '/admin/petugas'
@@ -226,21 +264,26 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface DashboardRouteChildren {
+  DashboardProfilRoute: typeof DashboardProfilRoute
+  DashboardRiwayatRoute: typeof DashboardRiwayatRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardProfilRoute: DashboardProfilRoute,
+  DashboardRiwayatRoute: DashboardRiwayatRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
-  DashboardRoute: DashboardRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
