@@ -30,13 +30,29 @@ function LoginPage() {
   const [debugEntries, setDebugEntries] = useState<LoginDebugEntry[]>([]);
 
   useEffect(() => {
+    pushLoginDebug("login: mounted");
     setDebugEntries(readLoginDebugEntries());
     const unsubscribe = subscribeLoginDebug(setDebugEntries);
+
+    const onBeforeUnload = () => pushLoginDebug("login: beforeunload");
+    const onPageHide = () => pushLoginDebug("login: pagehide");
+    const onVisibilityChange = () =>
+      pushLoginDebug("login: visibilitychange", { state: document.visibilityState });
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     if (!isLoggingIn) {
       pushLoginDebug("login: isLoggingIn false");
       setLoginStalled(false);
-      return unsubscribe;
+      return () => {
+        window.removeEventListener("beforeunload", onBeforeUnload);
+        window.removeEventListener("pagehide", onPageHide);
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        pushLoginDebug("login: unmounted");
+        unsubscribe();
+      };
     }
 
     pushLoginDebug("login: isLoggingIn true");
@@ -48,6 +64,10 @@ function LoginPage() {
 
     return () => {
       window.clearTimeout(timer);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      pushLoginDebug("login: unmounted");
       unsubscribe();
     };
   }, [isLoggingIn]);
@@ -66,11 +86,6 @@ function LoginPage() {
     } catch (e) {
       // Error is already handled by hook (toasts)
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await submitLogin();
   };
 
   const handleQuickLogin = async (nextEmail: string, nextPassword: string) => {
@@ -101,7 +116,7 @@ function LoginPage() {
           <p className="text-xs font-bold text-muted-foreground mt-2 tracking-widest uppercase opacity-70">Sistem Kehadiran Digital</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="relative z-[110] space-y-6">
+        <div className="relative z-[110] space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Email Institusi</Label>
             <Input 
@@ -178,7 +193,7 @@ function LoginPage() {
               </button>
             </div>
           )}
-        </form>
+        </div>
 
         <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
