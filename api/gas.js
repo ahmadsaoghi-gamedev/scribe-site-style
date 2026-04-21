@@ -39,6 +39,15 @@ async function getJsonBody(req) {
  * all interactions into GET requests with encoded query parameters.
  */
 export default async function handler(req, res) {
+  // Handle CORS preflight
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   const targetBaseUrl = getTargetUrl();
   
   if (!targetBaseUrl) {
@@ -93,7 +102,6 @@ export default async function handler(req, res) {
     // Standardize Response
     res.status(upstreamResponse.status || 200);
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Access-Control-Allow-Origin", "*"); // Safe as this is a backend-to-backend proxy
     res.send(bodyText);
 
   } catch (error) {
