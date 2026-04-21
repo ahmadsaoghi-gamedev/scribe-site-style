@@ -21,14 +21,14 @@ function createSession(user) {
   const token = generateToken();
 
   const session = {
-    id:            generateUUID(),
-    id_pengguna:   user.id,
-    token:         token,
-    peran:         user.peran,
-    id_kelas:      user.id_kelas || "",
-    dibuat_pada:   now.toISOString(),
+    id: generateUUID(),
+    id_pengguna: user.id,
+    token: token,
+    peran: user.peran,
+    id_kelas: user.id_kelas || "",
+    dibuat_pada: now.toISOString(),
     berakhir_pada: expired.toISOString(),
-    aktif:         true
+    aktif: true,
   };
 
   appendRow(SHEETS.SESSIONS, session);
@@ -45,7 +45,7 @@ function validateToken(token) {
   if (!token) return null;
 
   const sessions = getAllRows(SHEETS.SESSIONS);
-  const session = sessions.find(s => s.token === token);
+  const session = sessions.find((s) => s.token === token);
 
   if (!session) return null;
   if (!session.aktif || session.aktif === "false") return null;
@@ -67,7 +67,7 @@ function validateToken(token) {
  */
 function invalidateToken(token) {
   const sessions = getAllRows(SHEETS.SESSIONS);
-  const session = sessions.find(s => s.token === token);
+  const session = sessions.find((s) => s.token === token);
   if (session) {
     updateRowById(SHEETS.SESSIONS, session.id, { aktif: false });
   }
@@ -131,18 +131,31 @@ function handleLogin(body) {
   // Migrasi mulus untuk data lama yang masih menyimpan password plaintext.
   if (!looksLikeSha256Hash(user.kata_sandi)) {
     updateRowById(SHEETS.USERS, user.id, {
-      kata_sandi: hashPassword(password)
+      kata_sandi: hashPassword(password),
     });
   }
 
   const token = createSession(user);
 
+  // Ambil nama kelas untuk UX yang lebih baik di dashboard (mendukung multi kelas)
+  let idsKelas = user.id_kelas
+    ? String(user.id_kelas)
+        .split(",")
+        .map((id) => id.trim())
+    : [];
+  let namaKelasList = idsKelas.map((id) => {
+    const k = findRowById(SHEETS.KELAS, id);
+    return k ? k.nama_kelas : id;
+  });
+
   return jsonResponse({
-    success:  true,
-    token:    token,
-    role:     user.peran,
-    nama:     user.nama,
-    kelas_id: user.id_kelas || null
+    success: true,
+    token: token,
+    role: user.peran,
+    nama: user.nama,
+    kelas_id: user.id_kelas || null,
+    kelas_ids: idsKelas,
+    nama_kelas: namaKelasList.join(", "),
   });
 }
 

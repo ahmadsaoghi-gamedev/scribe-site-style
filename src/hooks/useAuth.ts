@@ -26,6 +26,8 @@ export function useAuth() {
         role: res.role,
         nama: res.nama,
         kelas_id: res.kelas_id,
+        kelas_ids: res.kelas_ids,
+        nama_kelas: res.nama_kelas,
       });
 
       toast.success(`Selamat datang, ${res.nama}`);
@@ -38,11 +40,12 @@ export function useAuth() {
       }
 
       return res;
-    } catch (error: any) {
-      pushLoginDebug("auth: onError", { message: error?.message });
-      console.error("[AUTH] onError:", error?.message, error);
-      toast.error(error.message || "Gagal masuk ke sistem. Periksa kembali email dan password Anda.");
-      throw error;
+    } catch (error: unknown) {
+      const err = error as Error;
+      pushLoginDebug("auth: onError", { message: err?.message });
+      console.error("[AUTH] onError:", err?.message, err);
+      toast.error(err.message || "Gagal masuk ke sistem. Periksa kembali email dan password Anda.");
+      throw err;
     } finally {
       setIsLoggingIn(false);
     }

@@ -14,9 +14,9 @@ function handleGetJadwalHari(params) {
     return errorResponse("kelas_id dan tanggal wajib diisi.");
   }
 
-  // Petugas hanya boleh akses kelas sendiri
-  if (session.peran === "petugas" && String(session.id_kelas) !== String(kelas_id)) {
-    return errorResponse("Anda tidak memiliki akses ke data kelas lain.");
+  // Petugas hanya boleh akses kelas yang ditugaskan
+  if (!isClassAllowed(session, kelas_id)) {
+    return errorResponse("Anda tidak memiliki akses ke data kelas ini.");
   }
 
   // Validasi kelas
@@ -28,24 +28,26 @@ function handleGetJadwalHari(params) {
   if (!VALID_HARI.includes(namaHari)) {
     return jsonResponse({
       success: true,
-      jadwal:  [],
-      message: `${namaHari} bukan hari sekolah.`
+      jadwal: [],
+      message: `${namaHari} bukan hari sekolah.`,
     });
   }
 
   // Ambil jadwal sesuai kelas dan hari
   const guruMap = {};
-  getAllRows(SHEETS.GURU).forEach(g => { guruMap[g.id] = g; });
+  getAllRows(SHEETS.GURU).forEach((g) => {
+    guruMap[g.id] = g;
+  });
 
   const jadwal = getAllRows(SHEETS.JADWAL)
-    .filter(j => String(j.id_kelas) === String(kelas_id) && j.hari === namaHari)
+    .filter((j) => String(j.id_kelas) === String(kelas_id) && j.hari === namaHari)
     .sort((a, b) => Number(a.jam_ke) - Number(b.jam_ke))
-    .map(j => ({
-      jam_ke:    Number(j.jam_ke),
-      guru_id:   j.id_guru,
+    .map((j) => ({
+      jam_ke: Number(j.jam_ke),
+      guru_id: j.id_guru,
       nama_guru: guruMap[j.id_guru] ? guruMap[j.id_guru].nama : "(tidak diketahui)",
-      mapel:     j.mapel,
-      jadwal_id: j.id
+      mapel: j.mapel,
+      jadwal_id: j.id,
     }));
 
   return jsonResponse({ success: true, jadwal });
@@ -63,8 +65,8 @@ function handleCekAbsensi(params) {
     return errorResponse("kelas_id dan tanggal wajib diisi.");
   }
 
-  if (session.peran === "petugas" && String(session.id_kelas) !== String(kelas_id)) {
-    return errorResponse("Anda tidak memiliki akses ke data kelas lain.");
+  if (!isClassAllowed(session, kelas_id)) {
+    return errorResponse("Anda tidak memiliki akses ke data kelas ini.");
   }
 
   const sudahAbsen = checkAbsensiExists(kelas_id, tanggal);
@@ -79,9 +81,10 @@ function handleCekAbsensi(params) {
  */
 function checkAbsensiExists(kelas_id, tanggal) {
   const absensiRows = getAllRows(SHEETS.ABSENSI);
-  return absensiRows.some(a =>
-    String(a.id_kelas) === String(kelas_id) &&
-    String(a.tanggal).substring(0, 10) === String(tanggal).substring(0, 10)
+  return absensiRows.some(
+    (a) =>
+      String(a.id_kelas) === String(kelas_id) &&
+      String(a.tanggal).substring(0, 10) === String(tanggal).substring(0, 10),
   );
 }
 
@@ -105,9 +108,9 @@ function handleSubmitAbsensi(body) {
     return errorResponse("Data absensi tidak boleh kosong.");
   }
 
-  // Petugas hanya boleh submit kelas sendiri
-  if (session.peran === "petugas" && String(session.id_kelas) !== String(kelas_id)) {
-    return errorResponse("Anda tidak memiliki izin untuk submit absensi kelas lain.");
+  // Petugas hanya boleh submit kelas yang ditugaskan
+  if (!isClassAllowed(session, kelas_id)) {
+    return errorResponse("Anda tidak memiliki izin untuk submit absensi kelas ini.");
   }
 
   // Validasi tanggal adalah hari kerja
@@ -125,13 +128,15 @@ function handleSubmitAbsensi(body) {
   }
 
   if (session.peran === "petugas" && String(effectivePetugasId) !== String(session.id_pengguna)) {
-    return errorResponse("Anda tidak memiliki izin untuk mengirim absensi atas nama pengguna lain.");
+    return errorResponse(
+      "Anda tidak memiliki izin untuk mengirim absensi atas nama pengguna lain.",
+    );
   }
 
   // Validasi petugas/session user ada
   const petugas = findRowById(SHEETS.USERS, effectivePetugasId);
   if (!petugas) return errorResponse("Petugas tidak ditemukan.");
-  if (session.peran === "petugas" && String(petugas.id_kelas) !== String(kelas_id)) {
+  if (!isClassAllowed(petugas, kelas_id)) {
     return errorResponse("Petugas tidak ditugaskan pada kelas ini.");
   }
 
@@ -143,7 +148,9 @@ function handleSubmitAbsensi(body) {
       return errorResponse(`Data absensi ke-${i + 1} tidak lengkap.`);
     }
     if (!validStatuses.includes(item.status)) {
-      return errorResponse(`Status '${item.status}' tidak valid. Pilih: ${validStatuses.join(", ")}.`);
+      return errorResponse(
+        `Status '${item.status}' tidak valid. Pilih: ${validStatuses.join(", ")}.`,
+      );
     }
     // Validasi jadwal_id ada
     const jadwal = findRowById(SHEETS.JADWAL, item.jadwal_id);
@@ -182,23 +189,22 @@ function handleSubmitAbsensi(body) {
     const submittedAt = new Date().toISOString();
 
     // Batch insert semua baris absensi
-    data.forEach(item => {
+    data.forEach((item) => {
       const row = {
-        id:           generateUUID(),
-        tanggal:      tanggal,
-        id_kelas:     kelas_id,
-        id_guru:      item.guru_id,
-        id_jadwal:    item.jadwal_id,
-        jam_ke:       Number(item.jam_ke),
-        status:       item.status,
-        id_petugas:   effectivePetugasId,
-        dibuat_pada:  submittedAt
+        id: generateUUID(),
+        tanggal: tanggal,
+        id_kelas: kelas_id,
+        id_guru: item.guru_id,
+        id_jadwal: item.jadwal_id,
+        jam_ke: Number(item.jam_ke),
+        status: item.status,
+        id_petugas: effectivePetugasId,
+        dibuat_pada: submittedAt,
       };
       appendRow(SHEETS.ABSENSI, row);
     });
 
     return jsonResponse({ success: true, message: "Absensi berhasil disubmit." });
-
   } finally {
     lock.releaseLock();
   }
@@ -213,12 +219,13 @@ function handleGetRiwayat(params) {
   const { token, kelas_id } = params;
   const session = requireRole(token, ["admin", "petugas"]);
 
-  const targetKelasId = kelas_id || session.id_kelas;
+  const targetKelasId =
+    kelas_id || (session.id_kelas ? session.id_kelas.split(",")[0].trim() : null);
   if (!targetKelasId) {
     return errorResponse("kelas_id wajib diisi.");
   }
 
-  if (session.peran === "petugas" && String(session.id_kelas) !== String(targetKelasId)) {
+  if (!isClassAllowed(session, targetKelasId)) {
     return errorResponse("Anda tidak memiliki akses ke data kelas lain.");
   }
 
@@ -227,14 +234,14 @@ function handleGetRiwayat(params) {
 
   const grouped = {};
   getAllRows(SHEETS.ABSENSI)
-    .filter(a => String(a.id_kelas) === String(targetKelasId))
-    .forEach(a => {
+    .filter((a) => String(a.id_kelas) === String(targetKelasId))
+    .forEach((a) => {
       const tanggal = String(a.tanggal).substring(0, 10);
       if (!grouped[tanggal]) {
         grouped[tanggal] = {
           tanggal: tanggal,
           total: 0,
-          status: "Selesai"
+          status: "Selesai",
         };
       }
       grouped[tanggal].total += 1;
@@ -242,4 +249,21 @@ function handleGetRiwayat(params) {
 
   const data = Object.values(grouped).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
   return successResponse(data);
+}
+
+/**
+ * Helper: Cek apakah user memiliki akses ke kelas tertentu.
+ * Mendukung id_kelas tunggal maupun multi (comma-separated).
+ * @param {Object} userOrSession
+ * @param {string} targetKelasId
+ * @returns {boolean}
+ */
+function isClassAllowed(userOrSession, targetKelasId) {
+  if (userOrSession.peran === "admin") return true;
+  if (!userOrSession.id_kelas) return false;
+
+  const allowedIds = String(userOrSession.id_kelas)
+    .split(",")
+    .map((id) => id.trim());
+  return allowedIds.includes(String(targetKelasId));
 }
