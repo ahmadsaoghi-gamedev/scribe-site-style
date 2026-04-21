@@ -41,6 +41,7 @@ function normalizeAppsScriptUrl(rawUrl: string): string {
 }
 
 const GAS_URL = normalizeAppsScriptUrl(RAW_GAS_URL);
+const BUILD_ID = "20260421-1216"; // Tracking deployment freshness
 
 export const USE_MOCK = isLocalHost() && !GAS_URL;
 
@@ -63,15 +64,13 @@ async function performRequest<T>(
 
   // Everything from here is in a master try-catch
   try {
-    pushLoginDebug(`perf: start action=${action}`, {
-      isLocal: isLocalHost(),
-      hasGasUrl: !!GAS_URL,
-      payloadKeys: Object.keys(payload),
-    });
-
-    // Step 2: Determine API target
     const isLocal = isLocalHost();
     const { token } = getSession() || {};
+    
+    pushLoginDebug(`perf: [${BUILD_ID}] start ${action}`, {
+      isLocal,
+      hasGasUrl: !!GAS_URL,
+    });
 
     let fetchUrl: string;
     let fetchInit: RequestInit;
@@ -96,7 +95,7 @@ async function performRequest<T>(
       fetchUrl = url.toString();
       fetchInit = { method: "GET" };
 
-      pushLoginDebug(`perf: localhost GET`, { url: fetchUrl.substring(0, 120) + "..." });
+      pushLoginDebug(`perf: local direct GET`);
     } else {
       // --- PRODUCTION: POST to Vercel proxy /api/gas ---
       const proxyUrl = new URL("/api/gas", window.location.origin);
@@ -110,7 +109,7 @@ async function performRequest<T>(
         body: JSON.stringify(payload),
       };
 
-      pushLoginDebug(`perf: production POST → ${fetchUrl}`);
+      pushLoginDebug(`perf: prod proxy POST`);
     }
 
     // Step 3: Fetch with timeout

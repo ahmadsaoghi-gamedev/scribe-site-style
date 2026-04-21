@@ -13,24 +13,13 @@ function getTargetUrl() {
 }
 
 /**
- * Utility to safe-parse JSON bodies.
+ * Utility to safely get the request data (query + body).
+ * Vercel pre-parses JSON and Form bodies into req.body.
  */
-async function getJsonBody(req) {
-  if (req.body) {
-    return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
-  }
-  
-  // Standard Node.js stream reading if body isn't pre-parsed
-  const chunks = [];
-  for await (const chunk of req) {
-    chunks.push(chunk);
-  }
-  const data = Buffer.concat(chunks).toString();
-  try {
-    return data ? JSON.parse(data) : {};
-  } catch (e) {
-    return {};
-  }
+function getRequestParams(req) {
+  const query = req.query || {};
+  const body = (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) || {};
+  return { ...query, ...body };
 }
 
 /**
@@ -57,37 +46,29 @@ export default async function handler(req, res) {
     });
   }
 
-  const action = req.query?.action || "";
+  const params = getRequestParams(req);
+  const action = params.action || "";
   const method = req.method || "GET";
 
   try {
     const url = new URL(targetBaseUrl);
     
-    // 1. Merge Query Parameters from the incoming request
-    Object.entries(req.query || {}).forEach(([key, value]) => {
-      if (value !== undefined) url.searchParams.set(key, String(value));
-    });
-
-    // 2. If it's a POST, parse the body and FLATTEN into Search Parameters
+    // Merge everything into the GAS URL parameters
     // This is the CRITICAL fix for the 'stuck' issue: it ensures data survives
     // the inevitable 302 redirect from script.google.com -> script.googleusercontent.com
-    if (method === "POST") {
-      const body = await getJsonBody(req);
-      Object.entries(body).forEach(([key, value]) => {
-        // Don't overwrite existing action or token if already in query
-        if (!url.searchParams.has(key) && value !== undefined && value !== null) {
-          url.searchParams.set(key, String(value));
-        }
-      });
-    }
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        url.searchParams.set(key, String(value));
+      }
+    });
 
-    // Always ensure 'action' is present
+    // Ensure action is always set if present in params
     if (action) url.searchParams.set("action", action);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
-    // 3. Upstream Call to GAS via GET (proven to be redirect-safe)
+    // Upstream Call to GAS via GET (proven to be redirect-safe)
     const upstreamResponse = await fetch(url.toString(), {
       method: "GET",
       signal: controller.signal,
