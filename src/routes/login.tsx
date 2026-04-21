@@ -43,16 +43,20 @@ function LoginPage() {
     window.addEventListener("pagehide", onPageHide);
     document.addEventListener("visibilitychange", onVisibilityChange);
 
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      unsubscribe();
+      pushLoginDebug("login: unmounted");
+    };
+  }, []);
+
+  useEffect(() => {
     if (!isLoggingIn) {
       pushLoginDebug("login: isLoggingIn false");
       setLoginStalled(false);
-      return () => {
-        window.removeEventListener("beforeunload", onBeforeUnload);
-        window.removeEventListener("pagehide", onPageHide);
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-        pushLoginDebug("login: unmounted");
-        unsubscribe();
-      };
+      return;
     }
 
     pushLoginDebug("login: isLoggingIn true");
@@ -64,11 +68,6 @@ function LoginPage() {
 
     return () => {
       window.clearTimeout(timer);
-      window.removeEventListener("beforeunload", onBeforeUnload);
-      window.removeEventListener("pagehide", onPageHide);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-      pushLoginDebug("login: unmounted");
-      unsubscribe();
     };
   }, [isLoggingIn]);
 
