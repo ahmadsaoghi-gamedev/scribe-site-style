@@ -32,8 +32,9 @@ function isLocalHost() {
 }
 
 function getApiBaseUrl() {
+  if (APPS_SCRIPT_URL) return APPS_SCRIPT_URL;
   if (!isLocalHost()) return PROXY_API_PATH;
-  return APPS_SCRIPT_URL;
+  return "";
 }
 
 export const USE_MOCK = isLocalHost() && !APPS_SCRIPT_URL;

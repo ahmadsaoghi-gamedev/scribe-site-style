@@ -1,4 +1,8 @@
+import https from "node:https";
+
 const REQUEST_TIMEOUT_MS = 15000;
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 
 function normalizeAppsScriptUrl() {
   const url =
@@ -42,6 +46,81 @@ function readBody(req) {
   });
 }
 
+function normalizeCookies(setCookieHeader = []) {
+  return setCookieHeader.map((cookie) => cookie.split(";")[0]).filter(Boolean);
+}
+
+function requestUrl(urlString, options, redirectCount = 0, cookies = []) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(urlString);
+    const headers = {
+      ...(options.headers || {}),
+    };
+
+    if (cookies.length > 0) {
+      headers.Cookie = cookies.join("; ");
+    }
+
+    if (options.body && headers["Content-Length"] == null) {
+      headers["Content-Length"] = Buffer.byteLength(options.body);
+    }
+
+    const req = https.request(
+      url,
+      {
+        method: options.method,
+        headers,
+      },
+      (res) => {
+        const chunks = [];
+
+        res.on("data", (chunk) => {
+          chunks.push(chunk);
+        });
+
+        res.on("end", async () => {
+          const body = Buffer.concat(chunks).toString("utf8");
+          const setCookie = normalizeCookies(res.headers["set-cookie"] || []);
+          const nextCookies = [...cookies, ...setCookie];
+
+          if (
+            REDIRECT_STATUS_CODES.has(res.statusCode || 0) &&
+            res.headers.location &&
+            redirectCount < MAX_REDIRECTS
+          ) {
+            try {
+              const nextUrl = new URL(res.headers.location, url).toString();
+              const redirected = await requestUrl(nextUrl, options, redirectCount + 1, nextCookies);
+              resolve(redirected);
+            } catch (error) {
+              reject(error);
+            }
+            return;
+          }
+
+          resolve({
+            status: res.statusCode || 500,
+            headers: res.headers,
+            body,
+          });
+        });
+      }
+    );
+
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      req.destroy(Object.assign(new Error("AbortError"), { name: "AbortError" }));
+    });
+
+    req.on("error", reject);
+
+    if (options.body) {
+      req.write(options.body);
+    }
+
+    req.end();
+  });
+}
+
 export default async function handler(req, res) {
   const appsScriptUrl = normalizeAppsScriptUrl();
   if (!appsScriptUrl) {
@@ -53,42 +132,26 @@ export default async function handler(req, res) {
   }
 
   const action = req.query?.action || "";
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     const method = req.method || "GET";
     let upstreamResponse;
 
     if (method === "GET") {
-      const searchParams = Object.entries(req.query || {});
-      const url = withAction(appsScriptUrl, action, searchParams);
-
-      upstreamResponse = await fetch(url, {
+      const url = withAction(appsScriptUrl, action, Object.entries(req.query || {}));
+      upstreamResponse = await requestUrl(url.toString(), {
         method: "GET",
-        signal: controller.signal,
       });
     } else if (method === "POST") {
       const bodyStr = await readBody(req);
-      let parsedBody = {};
-      try {
-        parsedBody = JSON.parse(bodyStr);
-      } catch (e) {
-        // Continue even if parsing fails
-      }
+      const url = withAction(appsScriptUrl, action, Object.entries(req.query || {}));
 
-      const searchParams = Object.entries(req.query || {});
-      const url = withAction(appsScriptUrl, action, searchParams);
-
-      for (const [key, value] of Object.entries(parsedBody)) {
-        if (key === "action" || value == null) continue;
-        url.searchParams.set(key, String(value));
-      }
-
-      // Convert POST to GET because GAS 302 redirects lose the POST body!
-      upstreamResponse = await fetch(url.toString(), {
-        method: "GET",
-        signal: controller.signal,
+      upstreamResponse = await requestUrl(url.toString(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain",
+        },
+        body: bodyStr,
       });
     } else {
       res.status(405).json({
@@ -98,12 +161,11 @@ export default async function handler(req, res) {
       return;
     }
 
-    const text = await upstreamResponse.text();
-    const contentType = upstreamResponse.headers.get("content-type") || "application/json; charset=utf-8";
+    const contentType = upstreamResponse.headers["content-type"] || "application/json; charset=utf-8";
 
     res.status(upstreamResponse.status || 200);
     res.setHeader("Content-Type", contentType);
-    res.send(text);
+    res.send(upstreamResponse.body);
   } catch (error) {
     if (error?.name === "AbortError") {
       res.status(504).json({
@@ -117,7 +179,5 @@ export default async function handler(req, res) {
       success: false,
       message: error?.message || "Unexpected proxy error.",
     });
-  } finally {
-    clearTimeout(timeoutId);
   }
 }
