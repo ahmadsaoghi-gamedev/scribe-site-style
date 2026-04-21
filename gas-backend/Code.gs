@@ -63,6 +63,9 @@ function doGet(e) {
       case "cekAbsensi":
         return handleCekAbsensi(params);
 
+      case "getRiwayat":
+        return handleGetRiwayat(params);
+
       case "submitAbsensi":
         return handleSubmitAbsensi(params);
 

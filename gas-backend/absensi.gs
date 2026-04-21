@@ -57,10 +57,14 @@ function handleGetJadwalHari(params) {
  */
 function handleCekAbsensi(params) {
   const { token, kelas_id, tanggal } = params;
-  requireRole(token, ["admin", "petugas"]);
+  const session = requireRole(token, ["admin", "petugas"]);
 
   if (!kelas_id || !tanggal) {
     return errorResponse("kelas_id dan tanggal wajib diisi.");
+  }
+
+  if (session.peran === "petugas" && String(session.id_kelas) !== String(kelas_id)) {
+    return errorResponse("Anda tidak memiliki akses ke data kelas lain.");
   }
 
   const sudahAbsen = checkAbsensiExists(kelas_id, tanggal);
@@ -83,10 +87,7 @@ function checkAbsensiExists(kelas_id, tanggal) {
 
 /**
  * POST ?action=submitAbsensi
- * Body: {
- *   token, tanggal, kelas_id, petugas_id,
- *   data: [{ jadwal_id, guru_id, jam_ke, status }]
- * }
+ * Body: { token, tanggal, kelas_id, petugas_id?, data: [{ jadwal_id, guru_id, jam_ke, status }] }
  * Petugas hanya boleh submit kelas sendiri.
  * Hanya boleh submit 1x per kelas per hari.
  * Menggunakan LockService untuk mencegah race condition.
@@ -94,10 +95,11 @@ function checkAbsensiExists(kelas_id, tanggal) {
 function handleSubmitAbsensi(body) {
   const { token, tanggal, kelas_id, petugas_id, data } = body;
   const session = requireRole(token, ["admin", "petugas"]);
+  const effectivePetugasId = petugas_id || session.id_pengguna;
 
   // Validasi field wajib
-  if (!tanggal || !kelas_id || !petugas_id || !data) {
-    return errorResponse("Semua field wajib diisi: tanggal, kelas_id, petugas_id, data.");
+  if (!tanggal || !kelas_id || !data) {
+    return errorResponse("Semua field wajib diisi: tanggal, kelas_id, data.");
   }
   if (!Array.isArray(data) || data.length === 0) {
     return errorResponse("Data absensi tidak boleh kosong.");
@@ -118,9 +120,20 @@ function handleSubmitAbsensi(body) {
   const kelas = findRowById(SHEETS.KELAS, kelas_id);
   if (!kelas) return errorResponse("Kelas tidak ditemukan.");
 
-  // Validasi petugas_id ada
-  const petugas = findRowById(SHEETS.USERS, petugas_id);
+  if (!effectivePetugasId) {
+    return errorResponse("Petugas tidak valid. Silakan login ulang.");
+  }
+
+  if (session.peran === "petugas" && String(effectivePetugasId) !== String(session.id_pengguna)) {
+    return errorResponse("Anda tidak memiliki izin untuk mengirim absensi atas nama pengguna lain.");
+  }
+
+  // Validasi petugas/session user ada
+  const petugas = findRowById(SHEETS.USERS, effectivePetugasId);
   if (!petugas) return errorResponse("Petugas tidak ditemukan.");
+  if (session.peran === "petugas" && String(petugas.id_kelas) !== String(kelas_id)) {
+    return errorResponse("Petugas tidak ditugaskan pada kelas ini.");
+  }
 
   // Validasi setiap data item
   const validStatuses = VALID_STATUS;
@@ -135,6 +148,18 @@ function handleSubmitAbsensi(body) {
     // Validasi jadwal_id ada
     const jadwal = findRowById(SHEETS.JADWAL, item.jadwal_id);
     if (!jadwal) return errorResponse(`jadwal_id '${item.jadwal_id}' tidak ditemukan.`);
+    if (String(jadwal.id_kelas) !== String(kelas_id)) {
+      return errorResponse(`jadwal_id '${item.jadwal_id}' tidak sesuai dengan kelas yang dipilih.`);
+    }
+    if (jadwal.hari !== namaHari) {
+      return errorResponse(`jadwal_id '${item.jadwal_id}' tidak sesuai dengan hari ${namaHari}.`);
+    }
+    if (String(jadwal.id_guru) !== String(item.guru_id)) {
+      return errorResponse(`guru_id untuk jadwal '${item.jadwal_id}' tidak sesuai.`);
+    }
+    if (Number(jadwal.jam_ke) !== Number(item.jam_ke)) {
+      return errorResponse(`jam_ke untuk jadwal '${item.jadwal_id}' tidak sesuai.`);
+    }
     // Validasi guru_id ada
     const guru = findRowById(SHEETS.GURU, item.guru_id);
     if (!guru) return errorResponse(`guru_id '${item.guru_id}' tidak ditemukan.`);
@@ -166,7 +191,7 @@ function handleSubmitAbsensi(body) {
         id_jadwal:    item.jadwal_id,
         jam_ke:       Number(item.jam_ke),
         status:       item.status,
-        id_petugas:   petugas_id,
+        id_petugas:   effectivePetugasId,
         dibuat_pada:  submittedAt
       };
       appendRow(SHEETS.ABSENSI, row);
@@ -177,4 +202,44 @@ function handleSubmitAbsensi(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+/**
+ * GET ?action=getRiwayat&kelas_id=X&token=xxx
+ * Riwayat submit absensi per kelas.
+ * Admin bisa lihat kelas mana saja, petugas hanya kelasnya sendiri.
+ */
+function handleGetRiwayat(params) {
+  const { token, kelas_id } = params;
+  const session = requireRole(token, ["admin", "petugas"]);
+
+  const targetKelasId = kelas_id || session.id_kelas;
+  if (!targetKelasId) {
+    return errorResponse("kelas_id wajib diisi.");
+  }
+
+  if (session.peran === "petugas" && String(session.id_kelas) !== String(targetKelasId)) {
+    return errorResponse("Anda tidak memiliki akses ke data kelas lain.");
+  }
+
+  const kelas = findRowById(SHEETS.KELAS, targetKelasId);
+  if (!kelas) return errorResponse("Kelas tidak ditemukan.");
+
+  const grouped = {};
+  getAllRows(SHEETS.ABSENSI)
+    .filter(a => String(a.id_kelas) === String(targetKelasId))
+    .forEach(a => {
+      const tanggal = String(a.tanggal).substring(0, 10);
+      if (!grouped[tanggal]) {
+        grouped[tanggal] = {
+          tanggal: tanggal,
+          total: 0,
+          status: "Selesai"
+        };
+      }
+      grouped[tanggal].total += 1;
+    });
+
+  const data = Object.values(grouped).sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+  return successResponse(data);
 }

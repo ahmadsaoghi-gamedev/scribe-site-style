@@ -25,28 +25,40 @@ function buildLaporan(dari, sampai) {
     if (!guruStats[a.id_guru]) {
       const guru = guruMap[a.id_guru];
       guruStats[a.id_guru] = {
-        guru_id:      a.id_guru,
-        nama_guru:    guru ? guru.nama : "(tidak diketahui)",
-        hadir:        0,
-        terlambat:    0,
-        tidak_hadir:  0,
-        kosong:       0,
-        detail:       []
+        guru_id:            a.id_guru,
+        nama_guru:          guru ? guru.nama : "(tidak diketahui)",
+        nip:                guru ? (guru.nip || "") : "",
+        mapel:              guru ? (guru.mapel || "") : "",
+        total_hadir:        0,
+        total_terlambat:    0,
+        total_tidak_hadir:  0,
+        total_kosong:       0,
+        // Backward compatibility for any consumer still reading the old keys.
+        hadir:              0,
+        terlambat:          0,
+        tidak_hadir:        0,
+        kosong:             0
       };
     }
     const stat = guruStats[a.id_guru];
     switch (a.status) {
-      case "Hadir":        stat.hadir++;       break;
-      case "Terlambat":    stat.terlambat++;   break;
-      case "Tidak Hadir":  stat.tidak_hadir++; break;
-      case "Kosong":       stat.kosong++;      break;
+      case "Hadir":
+        stat.total_hadir++;
+        stat.hadir++;
+        break;
+      case "Terlambat":
+        stat.total_terlambat++;
+        stat.terlambat++;
+        break;
+      case "Tidak Hadir":
+        stat.total_tidak_hadir++;
+        stat.tidak_hadir++;
+        break;
+      case "Kosong":
+        stat.total_kosong++;
+        stat.kosong++;
+        break;
     }
-    stat.detail.push({
-      tanggal:  String(a.tanggal).substring(0, 10),
-      kelas_id: a.id_kelas,
-      jam_ke:   a.jam_ke,
-      status:   a.status
-    });
   });
 
   return Object.values(guruStats).sort((a, b) => a.nama_guru.localeCompare(b.nama_guru));
