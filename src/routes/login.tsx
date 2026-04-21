@@ -6,7 +6,13 @@ import { Card } from "@/components/ui/card";
 import { SCHOOL, getSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartLoader } from "@/components/SmartLoader";
-import { clearLoginDebugEntries, pushLoginDebug, readLoginDebugEntries, subscribeLoginDebug, type LoginDebugEntry } from "@/lib/loginDebug";
+import {
+  clearLoginDebugEntries,
+  pushLoginDebug,
+  readLoginDebugEntries,
+  subscribeLoginDebug,
+  type LoginDebugEntry,
+} from "@/lib/loginDebug";
 import { LogIn, ShieldCheck, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -75,7 +81,10 @@ function LoginPage() {
     const normalizedEmail = email.trim().toLowerCase();
     pushLoginDebug("login: submit click", { email: normalizedEmail });
     if (!normalizedEmail || !password) {
-      pushLoginDebug("login: validation failed", { hasEmail: !!normalizedEmail, hasPassword: !!password });
+      pushLoginDebug("login: validation failed", {
+        hasEmail: !!normalizedEmail,
+        hasPassword: !!password,
+      });
       toast.error("Email dan kata sandi wajib diisi.");
       return;
     }
@@ -105,42 +114,57 @@ function LoginPage() {
         <div className="flex flex-col items-center text-center mb-8">
           <div className="relative mb-4">
             <div className="pointer-events-none absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
-            <img 
-              src={SCHOOL.logo} 
-              alt="Institution Logo" 
-              className="h-28 w-28 rounded-full object-cover ring-4 ring-background shadow-xl relative z-10" 
+            <img
+              src={SCHOOL.logo}
+              alt="Institution Logo"
+              className="h-28 w-28 rounded-full object-cover ring-4 ring-background shadow-xl relative z-10"
             />
           </div>
-          <h1 className="text-2xl font-black text-foreground leading-tight tracking-tighter uppercase">{SCHOOL.name}</h1>
-          <p className="text-xs font-bold text-muted-foreground mt-2 tracking-widest uppercase opacity-70">Sistem Kehadiran Digital</p>
+          <h1 className="text-2xl font-black text-foreground leading-tight tracking-tighter uppercase">
+            {SCHOOL.name}
+          </h1>
+          <p className="text-xs font-bold text-muted-foreground mt-2 tracking-widest uppercase opacity-70">
+            Sistem Kehadiran Digital
+          </p>
         </div>
 
         <div className="relative z-[110] space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Email Institusi</Label>
-            <Input 
-              id="email" 
-              type="email" 
-              value={email} 
-              onChange={(e) => setEmail(e.target.value)} 
+            <Label
+              htmlFor="email"
+              className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1"
+            >
+              Email Institusi
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   void submitLogin();
                 }
               }}
-              placeholder="nama@domain.sch.id" 
+              placeholder="nama@domain.sch.id"
               className="h-12 bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
               autoComplete="username"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" title="Kata Sandi" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Kata Sandi</Label>
-            <Input 
-              id="password" 
-              type="password" 
-              value={password} 
-              onChange={(e) => setPassword(e.target.value)} 
+            <Label
+              htmlFor="password"
+              title="Kata Sandi"
+              className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1"
+            >
+              Kata Sandi
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -151,10 +175,10 @@ function LoginPage() {
               autoComplete="current-password"
             />
           </div>
-          
+
           <button
             type="button"
-            disabled={isLoggingIn} 
+            disabled={isLoggingIn}
             onClick={() => {
               void submitLogin();
             }}
@@ -216,7 +240,8 @@ function LoginPage() {
             ) : (
               debugEntries.map((entry, index) => (
                 <p key={`${entry.at}-${index}`}>
-                  [{new Date(entry.at).toLocaleTimeString("id-ID", { hour12: false })}] {entry.message}
+                  [{new Date(entry.at).toLocaleTimeString("id-ID", { hour12: false })}]{" "}
+                  {entry.message}
                   {entry.detail ? ` :: ${entry.detail}` : ""}
                 </p>
               ))
@@ -226,10 +251,12 @@ function LoginPage() {
 
         <div className="mt-8 pt-6 border-t border-dashed border-border/60">
           <div className="space-y-3">
-            <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.2em] text-center mb-4">Akses Uji Coba</p>
-            
+            <p className="text-[10px] font-black uppercase text-muted-foreground/60 tracking-[0.2em] text-center mb-4">
+              Akses Uji Coba
+            </p>
+
             <div className="grid grid-cols-1 gap-2">
-              <button 
+              <button
                 type="button"
                 disabled={isLoggingIn}
                 onClick={() => {
@@ -241,13 +268,17 @@ function LoginPage() {
                   <ShieldCheck className="h-5 w-5 text-primary" />
                   <div className="text-left">
                     <p className="text-xs font-bold leading-tight">Admin System</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Manajemen Terpusat</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">
+                      Manajemen Terpusat
+                    </p>
                   </div>
                 </div>
-                <span className="text-[9px] font-black text-primary opacity-30 group-hover:opacity-100 transition-opacity">GUNAKAN</span>
+                <span className="text-[9px] font-black text-primary opacity-30 group-hover:opacity-100 transition-opacity">
+                  GUNAKAN
+                </span>
               </button>
 
-              <button 
+              <button
                 type="button"
                 disabled={isLoggingIn}
                 onClick={() => {
@@ -259,10 +290,14 @@ function LoginPage() {
                   <UserCheck className="h-5 w-5 text-muted-foreground" />
                   <div className="text-left">
                     <p className="text-xs font-bold leading-tight">Petugas Kelas</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">Input Absensi Harian</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">
+                      Input Absensi Harian
+                    </p>
                   </div>
                 </div>
-                <span className="text-[9px] font-black text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity">GUNAKAN</span>
+                <span className="text-[9px] font-black text-muted-foreground opacity-30 group-hover:opacity-100 transition-opacity">
+                  GUNAKAN
+                </span>
               </button>
             </div>
           </div>
