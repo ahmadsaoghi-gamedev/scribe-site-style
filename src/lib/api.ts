@@ -24,15 +24,15 @@ const RAW_GAS_URL =
   (typeof import.meta !== "undefined" && (import.meta as any).env?.NEXT_PUBLIC_APPS_SCRIPT_URL) ||
   "";
 
-const REQUEST_TIMEOUT_MS = 15000;
+const REQUEST_TIMEOUT_MS = 20000;
 
-function isLocalHost() {
+function isLocalHost(): boolean {
   if (typeof window === "undefined") return false;
   const { hostname } = window.location;
   return hostname === "localhost" || hostname === "127.0.0.1";
 }
 
-function normalizeAppsScriptUrl(rawUrl: string) {
+function normalizeAppsScriptUrl(rawUrl: string): string {
   const trimmed = String(rawUrl || "").trim();
   if (!trimmed) return "";
   if (/^https?:\/\//i.test(trimmed)) return trimmed;
@@ -42,118 +42,148 @@ function normalizeAppsScriptUrl(rawUrl: string) {
 
 const GAS_URL = normalizeAppsScriptUrl(RAW_GAS_URL);
 
-/**
- * Di production (Vercel), SELALU gunakan proxy backend /api/gas.
- * Ini kritis: browser yang langsung hit GAS akan kena 302 cross-origin redirect
- * yang menyebabkan request hang / freeze tanpa error.
- * Di localhost, gunakan GAS_URL langsung (jika ada) atau mock.
- */
-function getApiBase() {
-  if (isLocalHost()) return GAS_URL; // localhost: langsung ke GAS atau kosong (→ mock)
-  return "/api/gas"; // production: selalu lewat Vercel proxy
-}
-
 export const USE_MOCK = isLocalHost() && !GAS_URL;
 
+/**
+ * Robust request handler.
+ * - Production (Vercel): POST to /api/gas proxy → proxy does GET to GAS
+ * - Localhost with GAS_URL: GET directly to GAS (with query params)
+ * - Localhost without GAS_URL: mock handler
+ */
 async function performRequest<T>(
   action: string,
-  method: "GET" | "POST",
+  _method: "GET" | "POST",
   payload: Record<string, any> = {}
 ): Promise<T> {
+  // Step 1: Mock check
   if (USE_MOCK) {
     pushLoginDebug(`mock: ${action}`, payload);
     return mockHandler(action, "GET", payload) as T;
   }
 
-  const apiBase = getApiBase();
-
-  if (!apiBase) {
-    const msg = "VITE_APPS_SCRIPT_URL tidak dikonfigurasi.";
-    pushLoginDebug("error: config", msg);
-    throw new ApiError(msg);
-  }
-
-  const { token } = getSession() || {};
-
-  // Production: POST ke /api/gas dengan body JSON → proxy konversi ke GET ke GAS
-  // Localhost: BUILD URL dengan query params dan GET langsung ke GAS
-  let fetchUrl: string;
-  let fetchOptions: RequestInit;
-
-  if (!isLocalHost()) {
-    // --- PRODUCTION (Vercel Proxy) ---
-    const proxyUrl = new URL(apiBase, window.location.origin);
-    proxyUrl.searchParams.set("action", action);
-    if (token) proxyUrl.searchParams.set("token", token);
-
-    fetchUrl = proxyUrl.toString();
-    fetchOptions = {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, action, ...(token ? { token } : {}) }),
-    };
-
-    pushLoginDebug(`api: proxy POST → /api/gas?action=${action}`, { payload });
-  } else {
-    // --- LOCALHOST (Direct to GAS) ---
-    const url = new URL(apiBase);
-    url.searchParams.set("action", action);
-    if (token) url.searchParams.set("token", token);
-    Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
-      }
-    });
-
-    fetchUrl = url.toString();
-    fetchOptions = { method: "GET" };
-
-    pushLoginDebug(`api: direct GET → GAS action=${action}`, { url: fetchUrl });
-  }
-
-  pushLoginDebug("api: env check", {
-    raw: RAW_GAS_URL,
-    resolved: GAS_URL,
-    apiBase,
-    isLocal: isLocalHost(),
-  });
-
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
+  // Everything from here is in a master try-catch
   try {
-    const response = await fetch(fetchUrl, {
-      ...fetchOptions,
-      signal: controller.signal,
+    pushLoginDebug(`perf: start action=${action}`, {
+      isLocal: isLocalHost(),
+      hasGasUrl: !!GAS_URL,
+      payloadKeys: Object.keys(payload),
     });
 
+    // Step 2: Determine API target
+    const isLocal = isLocalHost();
+    const { token } = getSession() || {};
+
+    let fetchUrl: string;
+    let fetchInit: RequestInit;
+
+    if (isLocal) {
+      // --- LOCALHOST: Direct GET to Google Apps Script ---
+      if (!GAS_URL) {
+        throw new ApiError("VITE_APPS_SCRIPT_URL tidak dikonfigurasi.");
+      }
+
+      const url = new URL(GAS_URL);
+      url.searchParams.set("action", action);
+      if (token) url.searchParams.set("token", token);
+
+      // Flatten payload into query params (GAS reads from e.parameter)
+      for (const [key, value] of Object.entries(payload)) {
+        if (value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
+      }
+
+      fetchUrl = url.toString();
+      fetchInit = { method: "GET" };
+
+      pushLoginDebug(`perf: localhost GET`, { url: fetchUrl.substring(0, 120) + "..." });
+    } else {
+      // --- PRODUCTION: POST to Vercel proxy /api/gas ---
+      const proxyUrl = new URL("/api/gas", window.location.origin);
+      proxyUrl.searchParams.set("action", action);
+      if (token) proxyUrl.searchParams.set("token", token);
+
+      fetchUrl = proxyUrl.toString();
+      fetchInit = {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      };
+
+      pushLoginDebug(`perf: production POST → ${fetchUrl}`);
+    }
+
+    // Step 3: Fetch with timeout
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      pushLoginDebug("perf: TIMEOUT fired after " + REQUEST_TIMEOUT_MS + "ms");
+      controller.abort();
+    }, REQUEST_TIMEOUT_MS);
+
+    pushLoginDebug("perf: fetching...");
+
+    let response: Response;
+    try {
+      response = await fetch(fetchUrl, {
+        ...fetchInit,
+        signal: controller.signal,
+      });
+    } catch (fetchError: any) {
+      window.clearTimeout(timeoutId);
+
+      const isAbort = fetchError?.name === "AbortError";
+      const msg = isAbort
+        ? `Koneksi timeout (${REQUEST_TIMEOUT_MS / 1000}s). Server tidak merespons.`
+        : `Gagal menghubungi server: ${fetchError?.message || "Unknown network error"}`;
+
+      pushLoginDebug(`perf: fetch failed`, { name: fetchError?.name, message: fetchError?.message });
+      throw new ApiError(msg, isAbort ? 408 : 500);
+    }
+
+    window.clearTimeout(timeoutId);
+
+    pushLoginDebug(`perf: response ${response.status} ${response.statusText}`);
+
+    // Step 4: Parse response
     if (!response.ok) {
+      let errorBody = "";
+      try {
+        errorBody = await response.text();
+      } catch { /* ignore */ }
       const msg = `HTTP ${response.status}: ${response.statusText}`;
-      pushLoginDebug("error: http", msg);
+      pushLoginDebug("perf: HTTP error", { status: response.status, body: errorBody.substring(0, 200) });
       throw new ApiError(msg, response.status);
     }
 
-    const data: ApiResponse = await response.json();
-
-    if (!data.success) {
-      pushLoginDebug("error: logic", data.message || "Operation failed");
-      throw new ApiError(data.message || "Operation failed", 400, data);
+    let data: ApiResponse;
+    try {
+      data = await response.json();
+    } catch (parseError: any) {
+      pushLoginDebug("perf: JSON parse failed", parseError?.message);
+      throw new ApiError("Server mengembalikan respons yang tidak valid (bukan JSON).", 500);
     }
 
-    pushLoginDebug("success: data received");
+    pushLoginDebug("perf: data received", { success: data.success, keys: Object.keys(data) });
+
+    if (!data.success) {
+      pushLoginDebug("perf: logic error", data.message);
+      throw new ApiError(data.message || "Operasi gagal.", 400, data);
+    }
+
+    pushLoginDebug("perf: SUCCESS ✓");
     return data as T;
+
   } catch (error: any) {
-    if (error instanceof ApiError) throw error;
+    // Re-throw ApiError as-is (already logged)
+    if (error instanceof ApiError) {
+      pushLoginDebug(`perf: ApiError thrown → ${error.message}`);
+      throw error;
+    }
 
-    const isAbort = error?.name === "AbortError";
-    const msg = isAbort
-      ? "Koneksi timeout (15 detik). Periksa koneksi atau status Google Apps Script."
-      : error?.message || "Koneksi ke server terputus.";
-
-    pushLoginDebug(`error: ${error?.name || "UnknownError"}`, msg);
-    throw new ApiError(msg, isAbort ? 408 : 500);
-  } finally {
-    window.clearTimeout(timeoutId);
+    // Unexpected error
+    const msg = error?.message || "Terjadi kesalahan tidak terduga.";
+    pushLoginDebug(`perf: UNEXPECTED ERROR`, { name: error?.name, message: msg, stack: error?.stack?.substring(0, 300) });
+    throw new ApiError(msg, 500);
   }
 }
 
