@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { SCHOOL, getSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartLoader } from "@/components/SmartLoader";
 import { LogIn, ShieldCheck, UserCheck } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Otentikasi — Digital Attendance System" }] }),
@@ -28,42 +28,70 @@ function LoginPage() {
     }
   }, [navigate]);
 
+  const submitLogin = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail || !password) {
+      toast.error("Email dan kata sandi wajib diisi.");
+      return;
+    }
+
+    try {
+      await login({ email: normalizedEmail, password });
+    } catch (e) {
+      // Error is already handled by hook (toasts)
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await submitLogin();
+  };
+
+  const handleQuickLogin = async (nextEmail: string, nextPassword: string) => {
+    setEmail(nextEmail);
+    setPassword(nextPassword);
+
     try {
-      await login({ email: email.trim().toLowerCase(), password });
+      await login({ email: nextEmail, password: nextPassword });
     } catch (e) {
       // Error is already handled by hook (toasts)
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-accent/20 p-4 transition-colors duration-1000">
-      <Card className="w-full relative z-10 max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 animate-in fade-in zoom-in-95 duration-700 bg-background">
+    <div className="min-h-dvh overflow-y-auto bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-accent/20 px-4 py-6 sm:px-6 sm:py-10">
+      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md items-center justify-center sm:min-h-[calc(100dvh-5rem)]">
+      <Card className="w-full relative z-[100] max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 bg-background pointer-events-auto">
         <div className="flex flex-col items-center text-center mb-8">
-          <div className="relative mb-4 group cursor-pointer">
-            <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse group-hover:scale-125 transition-transform duration-500" />
+          <div className="relative mb-4">
+            <div className="pointer-events-none absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
             <img 
               src={SCHOOL.logo} 
               alt="Institution Logo" 
-              className="h-28 w-28 rounded-full object-cover ring-4 ring-background shadow-xl relative z-10 transition-transform group-hover:scale-110 duration-500" 
+              className="h-28 w-28 rounded-full object-cover ring-4 ring-background shadow-xl relative z-10" 
             />
           </div>
           <h1 className="text-2xl font-black text-foreground leading-tight tracking-tighter uppercase">{SCHOOL.name}</h1>
           <p className="text-xs font-bold text-muted-foreground mt-2 tracking-widest uppercase opacity-70">Sistem Kehadiran Digital</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="relative z-[110] space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-muted-foreground ml-1">Email Institusi</Label>
             <Input 
               id="email" 
               type="email" 
-              required 
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void submitLogin();
+                }
+              }}
               placeholder="nama@domain.sch.id" 
               className="h-12 bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
+              autoComplete="username"
             />
           </div>
           <div className="space-y-2">
@@ -71,17 +99,26 @@ function LoginPage() {
             <Input 
               id="password" 
               type="password" 
-              required 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  void submitLogin();
+                }
+              }}
               className="h-12 bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
+              autoComplete="current-password"
             />
           </div>
           
-          <Button 
-            type="submit" 
+          <button
+            type="button"
             disabled={isLoggingIn} 
-            className="w-full h-12 shadow-lg shadow-primary/25 text-base font-black tracking-widest uppercase rounded-xl transition-all hover:scale-[1.02] active:scale-95"
+            onClick={() => {
+              void submitLogin();
+            }}
+            className="relative z-[120] flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 h-12 text-base font-black tracking-widest uppercase text-primary-foreground shadow-lg shadow-primary/25 transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoggingIn ? (
               <SmartLoader size="sm" className="mr-2" />
@@ -89,7 +126,7 @@ function LoginPage() {
               <LogIn className="h-5 w-5 mr-2" />
             )}
             {isLoggingIn ? "MEMPROSES..." : "MASUK"}
-          </Button>
+          </button>
         </form>
 
         <div className="mt-8 pt-6 border-t border-dashed border-border/60">
@@ -99,7 +136,9 @@ function LoginPage() {
             <div className="grid grid-cols-1 gap-2">
               <button 
                 type="button"
-                onClick={() => { setEmail("admin@maswh.id"); setPassword("admin123"); }}
+                onClick={() => {
+                  void handleQuickLogin("admin@maswh.id", "admin123");
+                }}
                 className="flex items-center justify-between p-3 rounded-xl bg-primary/5 hover:bg-primary/10 border border-primary/10 transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -114,7 +153,9 @@ function LoginPage() {
 
               <button 
                 type="button"
-                onClick={() => { setEmail("petugas@maswh.id"); setPassword("petugas123"); }}
+                onClick={() => {
+                  void handleQuickLogin("petugas@maswh.id", "petugas123");
+                }}
                 className="flex items-center justify-between p-3 rounded-xl bg-accent/30 hover:bg-accent/50 border border-border/50 transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -130,6 +171,7 @@ function LoginPage() {
           </div>
         </div>
       </Card>
+      </div>
     </div>
   );
 }
