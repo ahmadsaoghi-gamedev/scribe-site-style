@@ -41,9 +41,10 @@ function normalizeAppsScriptUrl(rawUrl: string): string {
 }
 
 const GAS_URL = normalizeAppsScriptUrl(RAW_GAS_URL);
-const BUILD_ID = "20260421-1216"; // Tracking deployment freshness
+const BUILD_ID = "20260421-1338"; // Tracking deployment freshness
 
 export const USE_MOCK = isLocalHost() && !GAS_URL;
+const USE_DIRECT_GAS = isLocalHost() && !!GAS_URL;
 
 /**
  * Robust request handler.
@@ -70,6 +71,7 @@ async function performRequest<T>(
     pushLoginDebug(`perf: [${BUILD_ID}] start ${action}`, {
       isLocal,
       hasGasUrl: !!GAS_URL,
+      useDirectGas: USE_DIRECT_GAS,
     });
 
     let fetchUrl: string;
@@ -78,7 +80,7 @@ async function performRequest<T>(
     // Strategy:
     // 1. If VITE_APPS_SCRIPT_URL is set → direct GET to Google Apps Script (works on localhost, Lovable preview, and any static host).
     // 2. Otherwise → POST to /api/gas proxy (Vercel deployment with serverless function).
-    if (GAS_URL) {
+    if (USE_DIRECT_GAS) {
       // --- DIRECT: GET to Google Apps Script ---
       const url = new URL(GAS_URL);
       url.searchParams.set("action", action);
