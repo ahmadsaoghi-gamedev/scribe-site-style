@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -94,7 +93,6 @@ function PetugasDashboard() {
 
   return (
     <div className="min-h-screen pb-32 lg:pb-0 bg-gradient-to-b from-accent/30 via-background to-background animate-in fade-in duration-1000">
-      <Toaster richColors position="top-center" />
       
       <header className="bg-background/80 backdrop-blur-md border-b sticky top-0 z-20 shadow-sm transition-all duration-300">
         <div className="max-w-3xl mx-auto px-4 py-3">
@@ -245,4 +243,3 @@ function PetugasDashboard() {
   );
 }
 
-import { toast } from "sonner";

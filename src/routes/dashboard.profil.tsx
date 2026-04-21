@@ -1,5 +1,4 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LogOut, User as UserIcon } from "lucide-react";
@@ -26,7 +25,6 @@ function ProfilPage() {
 
   return (
     <div className="min-h-screen pb-20 lg:pb-0 bg-gradient-to-b from-accent/40 to-background">
-      <Toaster richColors position="top-center" />
       <header className="bg-card border-b sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <SchoolHeader subtitle="Profil Petugas" />

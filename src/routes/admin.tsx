@@ -1,5 +1,4 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
-import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard, Users, Calendar, UserCog, FileBarChart, LogOut, Menu } from "lucide-react";
 import { SchoolHeader } from "@/components/SchoolHeader";
@@ -42,7 +41,6 @@ function AdminLayout() {
 
   return (
     <div className="min-h-screen flex bg-muted/30">
-      <Toaster richColors position="top-center" />
       {/* Sidebar */}
       <aside className={cn(
         "fixed lg:static inset-y-0 left-0 z-30 w-64 bg-card border-r flex flex-col transition-transform no-print",

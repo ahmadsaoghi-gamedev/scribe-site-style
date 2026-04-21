@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +10,13 @@ import { LogIn, ShieldCheck, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
+  beforeLoad: () => {
+    const s = getSession();
+    if (s) {
+      if (s.role === "admin") throw redirect({ to: "/admin" });
+      if (s.role === "petugas") throw redirect({ to: "/dashboard" });
+    }
+  },
   head: () => ({ meta: [{ title: "Otentikasi — Digital Attendance System" }] }),
   component: LoginPage,
 });
@@ -18,15 +25,21 @@ function LoginPage() {
   const { login, isLoggingIn } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const navigate = useNavigate();
+  const [loginStalled, setLoginStalled] = useState(false);
 
   useEffect(() => {
-    const s = getSession();
-    if (s) {
-      if (s.role === "admin") navigate({ to: "/admin", replace: true });
-      if (s.role === "petugas") navigate({ to: "/dashboard", replace: true });
+    if (!isLoggingIn) {
+      setLoginStalled(false);
+      return;
     }
-  }, [navigate]);
+
+    const timer = window.setTimeout(() => {
+      setLoginStalled(true);
+      toast.error("Login terlalu lama. Kemungkinan browser masih memakai cache versi lama.");
+    }, 12000);
+
+    return () => window.clearTimeout(timer);
+  }, [isLoggingIn]);
 
   const submitLogin = async () => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -54,14 +67,13 @@ function LoginPage() {
     try {
       await login({ email: nextEmail, password: nextPassword });
     } catch (e) {
-      // Error is already handled by hook (toasts)
+      // Error handled by hook
     }
   };
 
   return (
-    <div className="min-h-dvh overflow-y-auto bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-accent/20 px-4 py-6 sm:px-6 sm:py-10">
-      <div className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-md items-center justify-center sm:min-h-[calc(100dvh-5rem)]">
-      <Card className="w-full relative z-[100] max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 bg-background pointer-events-auto">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-accent/20 px-4 py-8 flex items-center justify-center">
+      <Card className="w-full max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 bg-background relative z-10">
         <div className="flex flex-col items-center text-center mb-8">
           <div className="relative mb-4">
             <div className="pointer-events-none absolute inset-0 rounded-full bg-primary/20 animate-pulse" />
@@ -127,6 +139,18 @@ function LoginPage() {
             )}
             {isLoggingIn ? "MEMPROSES..." : "MASUK"}
           </button>
+
+          {loginStalled && (
+            <button
+              type="button"
+              onClick={() => {
+                window.location.reload();
+              }}
+              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+            >
+              Muat Ulang Halaman
+            </button>
+          )}
         </form>
 
         <div className="mt-8 pt-6 border-t border-dashed border-border/60">
@@ -171,7 +195,6 @@ function LoginPage() {
           </div>
         </div>
       </Card>
-      </div>
     </div>
   );
 }

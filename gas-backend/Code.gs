@@ -18,6 +18,9 @@ function doGet(e) {
     switch (action) {
 
       // --- Auth ---
+      case "login":
+        return handleLogin(params);
+
       case "logout":
         return handleLogout({ token: params.token });
 
@@ -41,12 +44,41 @@ function doGet(e) {
       case "getPetugas":
         return handleGetPetugas(params);
 
+      case "addPetugas":
+        return handleAddPetugas(params);
+
+      case "editPetugas":
+        return handleEditPetugas(params);
+
+      case "deletePetugas":
+        return handleDeletePetugas(params);
+
+      case "resetPassword":
+        return handleResetPassword(params);
+
       // --- Absensi ---
       case "getJadwalHari":
         return handleGetJadwalHari(params);
 
       case "cekAbsensi":
         return handleCekAbsensi(params);
+
+      case "submitAbsensi":
+        return handleSubmitAbsensi(params);
+
+      // --- Guru ---
+      case "addGuru":
+        return handleAddGuru(params);
+
+      case "editGuru":
+        return handleEditGuru(params);
+
+      case "deleteGuru":
+        return handleDeleteGuru(params);
+
+      // --- Jadwal ---
+      case "setJadwal":
+        return handleSetJadwal(params);
 
       // --- Laporan ---
       case "laporanHarian":

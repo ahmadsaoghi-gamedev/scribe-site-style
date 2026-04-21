@@ -1,6 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMemo } from "react";
-import { Toaster } from "@/components/ui/sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SchoolHeader } from "@/components/SchoolHeader";
@@ -50,7 +49,6 @@ function RiwayatPage() {
 
   return (
     <div className="min-h-screen pb-24 lg:pb-0 bg-gradient-to-b from-accent/40 to-background">
-      <Toaster richColors position="top-center" />
       <header className="bg-card border-b sticky top-0 z-10 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 py-3">
           <SchoolHeader subtitle="Riwayat Absensi" />
