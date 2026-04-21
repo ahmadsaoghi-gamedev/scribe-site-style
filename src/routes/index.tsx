@@ -1,6 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createFileRoute("/")({
   component: IndexPage,
@@ -20,5 +19,5 @@ function IndexPage() {
     }
   }, [navigate]);
 
-  return <Toaster />;
+  return null;
 }

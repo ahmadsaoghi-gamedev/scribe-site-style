@@ -64,8 +64,8 @@ export function InstallPrompt() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[60] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] no-print lg:hidden">
-      <div className="mx-auto max-w-md bg-card border border-primary/20 rounded-2xl shadow-2xl overflow-hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-[60] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] no-print lg:hidden pointer-events-none">
+      <div className="mx-auto max-w-md bg-card border border-primary/20 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto">
         {/* Main banner */}
         <div className="p-3 flex items-center gap-3">
           <img
