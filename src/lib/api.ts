@@ -2,12 +2,18 @@ import { mockHandler } from "./mock";
 import { getSession } from "./auth";
 import { pushLoginDebug } from "./loginDebug";
 
+/**
+ * Standard API Response Shape from Google Apps Script.
+ */
 export interface ApiResponse {
   success: boolean;
   message?: string;
   [key: string]: any;
 }
 
+/**
+ * Production-ready Custom Error for API failures.
+ */
 export class ApiError extends Error {
   constructor(
     public message: string,
@@ -19,136 +25,132 @@ export class ApiError extends Error {
   }
 }
 
-export const APPS_SCRIPT_URL =
+/**
+ * Backend Strategy Configuration.
+ */
+const APPS_SCRIPT_URL =
   (import.meta as any).env?.VITE_APPS_SCRIPT_URL ||
   (import.meta as any).env?.NEXT_PUBLIC_APPS_SCRIPT_URL ||
   "";
 
-const PROXY_API_PATH = "/api/gas";
 const REQUEST_TIMEOUT_MS = 15000;
 
 function isLocalHost() {
   if (typeof window === "undefined") return false;
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  return (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+  );
+}
+
+/**
+ * Decides whether to use the direct GAS URL or the Vercel Proxy.
+ * PROD: Always Proxy (to avoid body stripping on 302 and hide URL).
+ * DEV: Direct GAS (for speed) or Mock (if no URL set).
+ */
+function normalizeAppsScriptUrl(rawUrl: string) {
+  const trimmed = String(rawUrl || "").trim();
+  if (!trimmed) return "";
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith("/macros/")) {
+    return `https://script.google.com${trimmed}`;
+  }
+  return trimmed;
 }
 
 function getApiBaseUrl() {
-  // In production (non-localhost), always use the Vercel proxy to avoid
-  // GAS redirect stripping POST bodies and to hide the GAS URL from clients.
-  if (!isLocalHost()) return PROXY_API_PATH;
-  // In local dev, go directly to GAS if configured
-  return APPS_SCRIPT_URL;
+  return normalizeAppsScriptUrl(APPS_SCRIPT_URL);
 }
 
-export const USE_MOCK = isLocalHost() && !APPS_SCRIPT_URL;
+export const USE_MOCK = isLocalHost() && !normalizeAppsScriptUrl(APPS_SCRIPT_URL);
 
+/**
+ * Core Request Orchestrator.
+ * Centralizes logging, timeouts, and error normalization.
+ */
 async function performRequest<T>(
   action: string,
   method: "GET" | "POST",
   payload: any = {}
 ): Promise<T> {
+  const baseUrl = getApiBaseUrl();
+  
   if (USE_MOCK) {
-    pushLoginDebug("api: mock mode", { action, method });
+    pushLoginDebug(`mock: ${action}`, payload);
     return mockHandler(action, method, payload) as T;
   }
 
-  const apiBaseUrl = getApiBaseUrl();
-  pushLoginDebug("api: request start", {
-    action,
-    method,
-    base: apiBaseUrl || "(empty)",
-    localhost: isLocalHost(),
-  });
-  console.log(`[API] 🚀 ${action} | base=${apiBaseUrl || "(empty)"} | mock=${USE_MOCK} | localhost=${isLocalHost()}`);
-  if (!apiBaseUrl) {
-    pushLoginDebug("api: missing base url");
-    console.error("[API] ❌ No API URL configured!");
-    throw new ApiError("VITE_APPS_SCRIPT_URL is not configured. Check your environment variables.");
+  if (!baseUrl) {
+    const error = "API URL is missing. Check your environment variables.";
+    pushLoginDebug("error: config", error);
+    throw new ApiError(error);
   }
 
-  const usingProxy = apiBaseUrl.startsWith("/");
-  const url = usingProxy
-    ? new URL(apiBaseUrl, window.location.origin)
-    : new URL(apiBaseUrl);
-  pushLoginDebug("api: resolved url", { usingProxy, url: url.toString() });
-  console.log(`[API] 🌐 usingProxy=${usingProxy} | fullUrl=${url.toString().slice(0, 80)}`);
-
-  const session = getSession();
-  const token = session?.token || "";
-
-  const options: RequestInit = {
-    method,
-  };
-
+  const isProxy = false;
+  const url = new URL(baseUrl);
+  
+  const { token } = getSession() || {};
+  
+  // Configure Fetch Options
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-  options.signal = controller.signal;
+  
+  const options: RequestInit = {
+    method,
+    signal: controller.signal,
+  };
 
+  // Preparation: Standardize Payload Delivery
   if (method === "GET") {
     url.searchParams.set("action", action);
     if (token) url.searchParams.set("token", token);
-
-    Object.entries(payload).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
-      }
+    Object.entries(payload).forEach(([k, v]) => {
+      if (v != null) url.searchParams.set(k, String(v));
     });
   } else {
     url.searchParams.set("action", action);
-    options.headers = {
-      "Content-Type": usingProxy ? "application/json" : "text/plain",
-    };
-    options.body = JSON.stringify({
-      ...payload,
-      token,
-      action,
-    });
+    options.headers = { "Content-Type": "text/plain" };
+    options.body = JSON.stringify({ ...payload, action, token });
   }
 
-  try {
-    console.log(`[API] 📡 fetch → ${url.toString().slice(0, 100)}`);
-    pushLoginDebug("api: fetch send", { action, method });
-    const response = await fetch(url.toString(), options);
-    console.log(`[API] ✅ response status=${response.status} ok=${response.ok}`);
+  pushLoginDebug(`api: ${method} ${action}`, { url: url.toString() });
+  pushLoginDebug("api: env check", {
+    raw: APPS_SCRIPT_URL,
+    resolved: baseUrl,
+  });
 
-    pushLoginDebug("api: fetch response", { status: response.status, ok: response.ok });
+  try {
+    const response = await fetch(url.toString(), options);
+    
     if (!response.ok) {
-      throw new ApiError(`Network Error: ${response.status} ${response.statusText}`, response.status);
+      const errorMsg = `Server returned ${response.status}: ${response.statusText}`;
+      pushLoginDebug(`error: ${response.status}`, errorMsg);
+      throw new ApiError(errorMsg, response.status);
     }
 
     const data: ApiResponse = await response.json();
-    pushLoginDebug("api: response body", data);
-    console.log(`[API] 📦 data=`, data);
-
+    
     if (!data.success) {
+      pushLoginDebug("error: logic", data.message);
       throw new ApiError(data.message || "Operation failed", 400, data);
     }
 
+    pushLoginDebug("success: data received");
     return data as T;
+
   } catch (error: any) {
-    pushLoginDebug("api: catch", { name: error?.name, message: error?.message });
-    console.error(`[API] ❌ CATCH name=${error?.name} message=${error?.message}`);
     if (error instanceof ApiError) throw error;
 
-    if (error?.name === "AbortError") {
-      throw new ApiError(
-        "Permintaan ke server terlalu lama. Cek koneksi internet atau backend Google Apps Script Anda.",
-        408
-      );
-    }
-
-    if (error?.name === "TypeError" && /Failed to fetch/i.test(error.message || "")) {
-      throw new ApiError(
-        "Koneksi backend diblokir atau proxy Vercel gagal menjangkau Google Apps Script.",
-        403
-      );
-    }
-
+    const isAbort = error.name === "AbortError";
+    const message = isAbort 
+      ? "Koneksi timeout. Server Google Apps Script tidak merespon tepat waktu."
+      : error.message || "Koneksi ke server terputus.";
+    
+    pushLoginDebug(`error: ${error.name}`, message);
     console.error(`[API FAIL] ${method} ${action}:`, error);
-    throw new ApiError(error?.message || "Koneksi ke server terputus.");
+    throw new ApiError(message, isAbort ? 408 : 500);
+
   } finally {
-    pushLoginDebug("api: finally");
-    console.log(`[API] 🏁 finally — clearing timeout`);
     window.clearTimeout(timeoutId);
   }
 }

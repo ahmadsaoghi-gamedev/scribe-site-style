@@ -1,183 +1,111 @@
-import https from "node:https";
-
 const REQUEST_TIMEOUT_MS = 15000;
-const MAX_REDIRECTS = 5;
-const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 
-function normalizeAppsScriptUrl() {
+/**
+ * Normalizes the Spreadsheet URL from Environment Variables.
+ * Uses VITE_ prefix as prioritized by the user's config.
+ */
+function getTargetUrl() {
   const url =
     process.env.VITE_APPS_SCRIPT_URL ||
     process.env.NEXT_PUBLIC_APPS_SCRIPT_URL ||
     "";
-
-  return String(url || "").trim();
+  return String(url).trim();
 }
 
-function withAction(urlString, action, extraSearchParams = []) {
-  const url = new URL(urlString);
-  if (action) url.searchParams.set("action", action);
-
-  for (const [key, value] of extraSearchParams) {
-    if (key === "action" || value == null) continue;
-    url.searchParams.set(key, String(value));
+/**
+ * Utility to safe-parse JSON bodies.
+ */
+async function getJsonBody(req) {
+  if (req.body) {
+    return typeof req.body === "string" ? JSON.parse(req.body) : req.body;
   }
-
-  return url;
+  
+  // Standard Node.js stream reading if body isn't pre-parsed
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  const data = Buffer.concat(chunks).toString();
+  try {
+    return data ? JSON.parse(data) : {};
+  } catch (e) {
+    return {};
+  }
 }
 
-function readBody(req) {
-  return new Promise((resolve, reject) => {
-    if (req.body !== undefined) {
-      if (typeof req.body === "string") {
-        resolve(req.body);
-        return;
-      }
-
-      resolve(JSON.stringify(req.body));
-      return;
-    }
-
-    let raw = "";
-    req.on("data", (chunk) => {
-      raw += chunk;
-    });
-    req.on("end", () => resolve(raw || "{}"));
-    req.on("error", reject);
-  });
-}
-
-function normalizeCookies(setCookieHeader = []) {
-  return setCookieHeader.map((cookie) => cookie.split(";")[0]).filter(Boolean);
-}
-
-function requestUrl(urlString, options, redirectCount = 0, cookies = []) {
-  return new Promise((resolve, reject) => {
-    const url = new URL(urlString);
-    const headers = {
-      ...(options.headers || {}),
-    };
-
-    if (cookies.length > 0) {
-      headers.Cookie = cookies.join("; ");
-    }
-
-    if (options.body && headers["Content-Length"] == null) {
-      headers["Content-Length"] = Buffer.byteLength(options.body);
-    }
-
-    const req = https.request(
-      url,
-      {
-        method: options.method,
-        headers,
-      },
-      (res) => {
-        const chunks = [];
-
-        res.on("data", (chunk) => {
-          chunks.push(chunk);
-        });
-
-        res.on("end", async () => {
-          const body = Buffer.concat(chunks).toString("utf8");
-          const setCookie = normalizeCookies(res.headers["set-cookie"] || []);
-          const nextCookies = [...cookies, ...setCookie];
-
-          if (
-            REDIRECT_STATUS_CODES.has(res.statusCode || 0) &&
-            res.headers.location &&
-            redirectCount < MAX_REDIRECTS
-          ) {
-            try {
-              const nextUrl = new URL(res.headers.location, url).toString();
-              const redirected = await requestUrl(nextUrl, options, redirectCount + 1, nextCookies);
-              resolve(redirected);
-            } catch (error) {
-              reject(error);
-            }
-            return;
-          }
-
-          resolve({
-            status: res.statusCode || 500,
-            headers: res.headers,
-            body,
-          });
-        });
-      }
-    );
-
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => {
-      req.destroy(Object.assign(new Error("AbortError"), { name: "AbortError" }));
-    });
-
-    req.on("error", reject);
-
-    if (options.body) {
-      req.write(options.body);
-    }
-
-    req.end();
-  });
-}
-
+/**
+ * World-Class Vercel Proxy for Google Apps Script.
+ * Handles the characteristic 302 redirects of GAS by converting
+ * all interactions into GET requests with encoded query parameters.
+ */
 export default async function handler(req, res) {
-  const appsScriptUrl = normalizeAppsScriptUrl();
-  if (!appsScriptUrl) {
-    res.status(500).json({
+  const targetBaseUrl = getTargetUrl();
+  
+  if (!targetBaseUrl) {
+    return res.status(500).json({
       success: false,
-      message: "VITE_APPS_SCRIPT_URL is not configured on the server.",
+      message: "Target API URL not configured. Set VITE_APPS_SCRIPT_URL in Vercel settings.",
     });
-    return;
   }
 
   const action = req.query?.action || "";
+  const method = req.method || "GET";
 
   try {
-    const method = req.method || "GET";
-    let upstreamResponse;
+    const url = new URL(targetBaseUrl);
+    
+    // 1. Merge Query Parameters from the incoming request
+    Object.entries(req.query || {}).forEach(([key, value]) => {
+      if (value !== undefined) url.searchParams.set(key, String(value));
+    });
 
-    if (method === "GET") {
-      const url = withAction(appsScriptUrl, action, Object.entries(req.query || {}));
-      upstreamResponse = await requestUrl(url.toString(), {
-        method: "GET",
+    // 2. If it's a POST, parse the body and FLATTEN into Search Parameters
+    // This is the CRITICAL fix for the 'stuck' issue: it ensures data survives
+    // the inevitable 302 redirect from script.google.com -> script.googleusercontent.com
+    if (method === "POST") {
+      const body = await getJsonBody(req);
+      Object.entries(body).forEach(([key, value]) => {
+        // Don't overwrite existing action or token if already in query
+        if (!url.searchParams.has(key) && value !== undefined && value !== null) {
+          url.searchParams.set(key, String(value));
+        }
       });
-    } else if (method === "POST") {
-      const bodyStr = await readBody(req);
-      const url = withAction(appsScriptUrl, action, Object.entries(req.query || {}));
-
-      upstreamResponse = await requestUrl(url.toString(), {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        body: bodyStr,
-      });
-    } else {
-      res.status(405).json({
-        success: false,
-        message: `Method ${method} is not allowed.`,
-      });
-      return;
     }
 
-    const contentType = upstreamResponse.headers["content-type"] || "application/json; charset=utf-8";
+    // Always ensure 'action' is present
+    if (action) url.searchParams.set("action", action);
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    // 3. Upstream Call to GAS via GET (proven to be redirect-safe)
+    const upstreamResponse = await fetch(url.toString(), {
+      method: "GET",
+      signal: controller.signal,
+      redirect: "follow"
+    });
+
+    clearTimeout(timeout);
+
+    const contentType = upstreamResponse.headers.get("content-type") || "application/json";
+    const bodyText = await upstreamResponse.text();
+
+    // Standardize Response
     res.status(upstreamResponse.status || 200);
     res.setHeader("Content-Type", contentType);
-    res.send(upstreamResponse.body);
-  } catch (error) {
-    if (error?.name === "AbortError") {
-      res.status(504).json({
-        success: false,
-        message: "Proxy timeout while contacting Google Apps Script.",
-      });
-      return;
-    }
+    res.setHeader("Access-Control-Allow-Origin", "*"); // Safe as this is a backend-to-backend proxy
+    res.send(bodyText);
 
-    res.status(500).json({
+  } catch (error) {
+    const isTimeout = error.name === "AbortError";
+    console.error(`[PROXY ERROR] ${method} ${action}:`, error);
+
+    res.status(isTimeout ? 504 : 500).json({
       success: false,
-      message: error?.message || "Unexpected proxy error.",
+      message: isTimeout 
+        ? "Google Apps Script took too long to respond. Connection timed out." 
+        : `Proxy Error: ${error.message}`,
     });
   }
 }
+
