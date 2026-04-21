@@ -40,6 +40,7 @@ export const APPS_SCRIPT_URL =
  * Automatically enables mock mode if no backend URL is provided.
  */
 export const USE_MOCK = !APPS_SCRIPT_URL;
+const REQUEST_TIMEOUT_MS = 15000;
 
 /**
  * Generic request orchestrator.
@@ -73,6 +74,9 @@ async function performRequest<T>(
   const options: RequestInit = {
     method,
   };
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  options.signal = controller.signal;
 
   if (method === "GET") {
     url.searchParams.set("token", token);
@@ -114,9 +118,16 @@ async function performRequest<T>(
     return data as T;
   } catch (error: any) {
     if (error instanceof ApiError) throw error;
+
+    if (error?.name === "AbortError") {
+      throw new ApiError(
+        "Permintaan ke server terlalu lama. Cek koneksi internet atau backend Google Apps Script Anda.",
+        408
+      );
+    }
     
     // Check if it's a CORS preflight failure (often manifests as TypeError: Failed to fetch)
-    if (error.name === "TypeError" && error.message === "Failed to fetch") {
+    if (error?.name === "TypeError" && /Failed to fetch/i.test(error.message || "")) {
       throw new ApiError(
         "Koneksi backend diblokir (CORS). Pastikan Google Apps Script dideploy sebagai Web App dengan akses 'Anyone'.",
         403
@@ -125,6 +136,8 @@ async function performRequest<T>(
     
     console.error(`[API FAIL] ${method} ${action}:`, error);
     throw new ApiError(error.message || "Koneksi ke server terputus.");
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 
