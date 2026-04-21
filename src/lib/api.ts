@@ -75,12 +75,11 @@ async function performRequest<T>(
     let fetchUrl: string;
     let fetchInit: RequestInit;
 
-    if (isLocal) {
-      // --- LOCALHOST: Direct GET to Google Apps Script ---
-      if (!GAS_URL) {
-        throw new ApiError("VITE_APPS_SCRIPT_URL tidak dikonfigurasi.");
-      }
-
+    // Strategy:
+    // 1. If VITE_APPS_SCRIPT_URL is set → direct GET to Google Apps Script (works on localhost, Lovable preview, and any static host).
+    // 2. Otherwise → POST to /api/gas proxy (Vercel deployment with serverless function).
+    if (GAS_URL) {
+      // --- DIRECT: GET to Google Apps Script ---
       const url = new URL(GAS_URL);
       url.searchParams.set("action", action);
       if (token) url.searchParams.set("token", token);
@@ -95,9 +94,9 @@ async function performRequest<T>(
       fetchUrl = url.toString();
       fetchInit = { method: "GET" };
 
-      pushLoginDebug(`perf: local direct GET`);
+      pushLoginDebug(`perf: direct GET to GAS`);
     } else {
-      // --- PRODUCTION: POST to Vercel proxy /api/gas ---
+      // --- FALLBACK: POST to /api/gas proxy ---
       const proxyUrl = new URL("/api/gas", window.location.origin);
       proxyUrl.searchParams.set("action", action);
       if (token) proxyUrl.searchParams.set("token", token);
@@ -109,7 +108,7 @@ async function performRequest<T>(
         body: JSON.stringify(payload),
       };
 
-      pushLoginDebug(`perf: prod proxy POST`);
+      pushLoginDebug(`perf: proxy POST /api/gas`);
     }
 
     // Step 3: Fetch with timeout
