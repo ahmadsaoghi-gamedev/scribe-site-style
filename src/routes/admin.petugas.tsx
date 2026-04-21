@@ -218,7 +218,7 @@ function PetugasPage() {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Edit Data Petugas" : "Tambah Petugas Baru"}</DialogTitle>
             <DialogDescription>
@@ -228,34 +228,40 @@ function PetugasPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-1">
-            <div className="space-y-1.5">
-              <Label htmlFor="petugas-nama">Nama Lengkap</Label>
-              <Input
-                id="petugas-nama"
-                value={form.nama}
-                onChange={f("nama")}
-                placeholder="Nama petugas"
-              />
+          <div className="space-y-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="petugas-nama">Nama Lengkap</Label>
+                <Input
+                  id="petugas-nama"
+                  value={form.nama}
+                  onChange={f("nama")}
+                  placeholder="Nama petugas"
+                  className="w-full"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="petugas-email">Email</Label>
+                <Input
+                  id="petugas-email"
+                  type="email"
+                  value={form.email}
+                  onChange={f("email")}
+                  placeholder="email@maswh.id"
+                  disabled={isEditing}
+                  className="w-full"
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="petugas-email">Email</Label>
-              <Input
-                id="petugas-email"
-                type="email"
-                value={form.email}
-                onChange={f("email")}
-                placeholder="email@domain.sch.id"
-                disabled={isEditing}
-              />
-              {isEditing && (
-                <p className="text-xs text-muted-foreground">
-                  Email tidak dapat diubah setelah dibuat.
-                </p>
-              )}
-            </div>
+
+            {isEditing && (
+              <p className="text-[11px] text-muted-foreground -mt-2">
+                Email tidak dapat diubah setelah dibuat.
+              </p>
+            )}
+
             {!isEditing && (
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <Label htmlFor="petugas-password">Password</Label>
                 <Input
                   id="petugas-password"
@@ -263,46 +269,73 @@ function PetugasPage() {
                   value={form.password}
                   onChange={f("password")}
                   placeholder="Minimal 6 karakter"
+                  className="w-full"
                 />
               </div>
             )}
-            <div className="space-y-3">
-              <Label>Kelas yang Ditugaskan</Label>
-              <div className="space-y-2">
-                {kelasList.map((k) => (
-                  <label
-                    key={k.id}
-                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 cursor-pointer transition-colors"
-                  >
-                    <Checkbox
-                      checked={form.kelas_ids.includes(k.id)}
-                      onCheckedChange={(checked) => {
-                        setForm((prev) => ({
-                          ...prev,
-                          kelas_ids: checked
-                            ? [...prev.kelas_ids, k.id]
-                            : prev.kelas_ids.filter((id) => id !== k.id),
-                        }));
-                      }}
-                    />
-                    <span className="text-sm font-medium">{k.nama_kelas}</span>
-                  </label>
-                ))}
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs uppercase tracking-wider font-bold opacity-70">
+                  Kelas yang Ditugaskan
+                </Label>
+                {form.kelas_ids.length > 0 && (
+                  <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-bold">
+                    {form.kelas_ids.length} TERPILIH
+                  </Badge>
+                )}
+              </div>
+
+              <div className="relative group">
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {kelasList.map((k) => {
+                    const selected = form.kelas_ids.includes(k.id);
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() => {
+                          setForm((prev) => ({
+                            ...prev,
+                            kelas_ids: selected
+                              ? prev.kelas_ids.filter((id) => id !== k.id)
+                              : [...prev.kelas_ids, k.id],
+                          }));
+                        }}
+                        className={`h-10 px-3 rounded-xl text-xs font-black border transition-all duration-300 ${
+                          selected
+                            ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/20 scale-105"
+                            : "bg-muted/50 text-muted-foreground border-transparent hover:border-muted-foreground/30 hover:bg-muted"
+                        }`}
+                      >
+                        {k.nama_kelas}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setDialogOpen(false)}
+              className="font-bold uppercase text-xs tracking-widest h-11"
+            >
               Batal
             </Button>
-            <Button onClick={handleSave} disabled={isSaving || !canSave}>
+            <Button
+              onClick={handleSave}
+              disabled={isSaving || !canSave}
+              className="flex-1 sm:flex-none font-bold uppercase text-xs tracking-widest h-11 px-8 shadow-xl shadow-primary/20"
+            >
               {isSaving ? (
                 <>
-                  <SmartLoader size="sm" className="mr-2" /> Menyimpan…
+                  <SmartLoader size="sm" className="mr-2" /> MENYIMPAN…
                 </>
               ) : (
-                "Simpan"
+                "SIMPAN"
               )}
             </Button>
           </DialogFooter>
