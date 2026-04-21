@@ -9,18 +9,29 @@
 function handleGetPetugas(params) {
   requireRole(params.token, ["admin"]);
 
-  const users  = getAllRows(SHEETS.USERS).filter(u => u.peran === "petugas");
+  const users = getAllRows(SHEETS.USERS).filter((u) => u.peran === "petugas");
   const kelasMap = {};
-  getAllRows(SHEETS.KELAS).forEach(k => { kelasMap[k.id] = k; });
+  getAllRows(SHEETS.KELAS).forEach((k) => {
+    kelasMap[k.id] = k;
+  });
 
-  const data = users.map(u => ({
-    id:         u.id,
-    nama:       u.nama,
-    email:      u.email,
-    kelas_id:   u.id_kelas || "",
-    nama_kelas: kelasMap[u.id_kelas] ? kelasMap[u.id_kelas].nama_kelas : "(tidak ada)",
-    aktif:      u.aktif === true || u.aktif === "true" || u.aktif === "TRUE"
-  }));
+  const data = users.map((u) => {
+    const ids = u.id_kelas
+      ? String(u.id_kelas)
+          .split(",")
+          .map((s) => s.trim())
+      : [];
+    const names = ids.map((id) => (kelasMap[id] ? kelasMap[id].nama_kelas : id));
+
+    return {
+      id: u.id,
+      nama: u.nama,
+      email: u.email,
+      kelas_id: u.id_kelas || "",
+      nama_kelas: names.length > 0 ? names.join(", ") : "(tidak ada)",
+      aktif: u.aktif === true || u.aktif === "true" || u.aktif === "TRUE",
+    };
+  });
 
   return successResponse(data);
 }
@@ -48,28 +59,41 @@ function handleAddPetugas(body) {
   const existing = findRowByField(SHEETS.USERS, "email", emailLower);
   if (existing) return errorResponse("Email sudah terdaftar.");
 
-  // Validasi kelas ada dan sudah tidak dipakai petugas lain (1 kelas – 1 petugas)
-  const kelas = findRowById(SHEETS.KELAS, kelas_id);
-  if (!kelas) return errorResponse("Kelas tidak ditemukan.");
+  // Validasi kelas ada dan sudah tidak dipakai petugas lain
+  const ids = String(kelas_id)
+    .split(",")
+    .map((s) => s.trim());
+  const allUsers = getAllRows(SHEETS.USERS);
 
-  const kelasUsed = getAllRows(SHEETS.USERS).find(u =>
-    u.peran === "petugas" &&
-    String(u.id_kelas) === String(kelas_id) &&
-    (u.aktif === true || u.aktif === "true" || u.aktif === "TRUE")
-  );
-  if (kelasUsed) {
-    return errorResponse(`Kelas ${kelas.nama_kelas} sudah memiliki petugas aktif.`);
+  for (const idKls of ids) {
+    const kelas = findRowById(SHEETS.KELAS, idKls);
+    if (!kelas) return errorResponse(`Kelas '${idKls}' tidak ditemukan.`);
+
+    const kelasUsed = allUsers.find((u) => {
+      if (u.peran !== "petugas" || !(u.aktif === true || u.aktif === "true" || u.aktif === "TRUE"))
+        return false;
+      const uIds = String(u.id_kelas || "")
+        .split(",")
+        .map((s) => s.trim());
+      return uIds.includes(idKls);
+    });
+
+    if (kelasUsed) {
+      return errorResponse(
+        `Kelas ${kelas.nama_kelas} sudah memiliki petugas aktif (${kelasUsed.nama}).`,
+      );
+    }
   }
 
   const user = {
-    id:            generateUUID(),
-    nama:          nama.trim(),
-    email:         emailLower,
-    kata_sandi:    hashPassword(password),
-    peran:          "petugas",
-    id_kelas:      kelas_id,
-    aktif:         true,
-    dibuat_pada:   new Date().toISOString()
+    id: generateUUID(),
+    nama: nama.trim(),
+    email: emailLower,
+    kata_sandi: hashPassword(password),
+    peran: "petugas",
+    id_kelas: kelas_id,
+    aktif: true,
+    dibuat_pada: new Date().toISOString(),
   };
 
   appendRow(SHEETS.USERS, user);
@@ -102,25 +126,41 @@ function handleEditPetugas(body) {
 
   // Validasi kelas jika diubah
   if (kelas_id && String(kelas_id) !== String(existing.id_kelas)) {
-    const kelas = findRowById(SHEETS.KELAS, kelas_id);
-    if (!kelas) return errorResponse("Kelas tidak ditemukan.");
+    const ids = String(kelas_id)
+      .split(",")
+      .map((s) => s.trim());
+    const allUsers = getAllRows(SHEETS.USERS);
 
-    const kelasUsed = getAllRows(SHEETS.USERS).find(u =>
-      u.peran === "petugas" &&
-      String(u.id_kelas) === String(kelas_id) &&
-      u.id !== id &&
-      (u.aktif === true || u.aktif === "true" || u.aktif === "TRUE")
-    );
-    if (kelasUsed) {
-      return errorResponse(`Kelas ${kelas.nama_kelas} sudah memiliki petugas aktif.`);
+    for (const idKls of ids) {
+      const kelas = findRowById(SHEETS.KELAS, idKls);
+      if (!kelas) return errorResponse(`Kelas '${idKls}' tidak ditemukan.`);
+
+      const kelasUsed = allUsers.find((u) => {
+        if (
+          u.id === id ||
+          u.peran !== "petugas" ||
+          !(u.aktif === true || u.aktif === "true" || u.aktif === "TRUE")
+        )
+          return false;
+        const uIds = String(u.id_kelas || "")
+          .split(",")
+          .map((s) => s.trim());
+        return uIds.includes(idKls);
+      });
+
+      if (kelasUsed) {
+        return errorResponse(
+          `Kelas ${kelas.nama_kelas} sudah memiliki petugas aktif (${kelasUsed.nama}).`,
+        );
+      }
     }
   }
 
   const updates = {};
-  if (nama     !== undefined) updates.nama     = nama.trim();
-  if (email    !== undefined) updates.email    = email.toLowerCase().trim();
+  if (nama !== undefined) updates.nama = nama.trim();
+  if (email !== undefined) updates.email = email.toLowerCase().trim();
   if (kelas_id !== undefined) updates.id_kelas = kelas_id;
-  if (aktif    !== undefined) updates.aktif    = aktif === true || aktif === "true";
+  if (aktif !== undefined) updates.aktif = aktif === true || aktif === "true";
 
   updateRowById(SHEETS.USERS, id, updates);
   return jsonResponse({ success: true, message: "Data petugas berhasil diperbarui." });

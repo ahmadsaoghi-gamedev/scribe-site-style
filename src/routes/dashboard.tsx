@@ -60,10 +60,10 @@ function PetugasDashboard() {
     ];
   }, []);
 
-  const [selectedKelasId, setSelectedKelasId] = useState<string>(
-    session?.kelas_ids?.[0] || session?.kelas_id || "",
-  );
+  const validKelasIds = (session?.kelas_ids || []).filter((id) => id && !id.includes(","));
+  const [selectedKelasId, setSelectedKelasId] = useState<string>(validKelasIds[0] || "");
 
+  const hasKelasAccess = validKelasIds.length > 0;
   const { data, isLoading, isSubmitting, submit } = useAbsensi(selectedKelasId, today);
   const { logout } = useAuth();
   const { kelas: kelasList } = useKelas();
@@ -92,7 +92,7 @@ function PetugasDashboard() {
     }
   };
 
-  if (!session?.kelas_id)
+  if (!hasKelasAccess)
     return (
       <div className="min-h-screen pb-32 lg:pb-0 bg-gradient-to-b from-accent/30 via-background to-background animate-in fade-in duration-1000 flex flex-col">
         <header className="bg-background/80 backdrop-blur-md border-b sticky top-0 z-20 shadow-sm transition-all duration-300">
@@ -140,7 +140,7 @@ function PetugasDashboard() {
                   <SelectValue placeholder="Pilih kelas" />
                 </SelectTrigger>
                 <SelectContent>
-                  {session.kelas_ids.map((id) => {
+                  {validKelasIds.map((id) => {
                     const kelas = kelasList.find((k) => k.id === id);
                     return (
                       <SelectItem key={id} value={id}>
