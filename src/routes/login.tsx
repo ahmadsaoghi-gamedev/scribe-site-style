@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { SCHOOL, getSession } from "@/lib/auth";
 import { useAuth } from "@/hooks/useAuth";
 import { SmartLoader } from "@/components/SmartLoader";
+import { clearLoginDebugEntries, pushLoginDebug, readLoginDebugEntries, subscribeLoginDebug, type LoginDebugEntry } from "@/lib/loginDebug";
 import { LogIn, ShieldCheck, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,24 +27,36 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginStalled, setLoginStalled] = useState(false);
+  const [debugEntries, setDebugEntries] = useState<LoginDebugEntry[]>([]);
 
   useEffect(() => {
+    setDebugEntries(readLoginDebugEntries());
+    const unsubscribe = subscribeLoginDebug(setDebugEntries);
+
     if (!isLoggingIn) {
+      pushLoginDebug("login: isLoggingIn false");
       setLoginStalled(false);
-      return;
+      return unsubscribe;
     }
 
+    pushLoginDebug("login: isLoggingIn true");
     const timer = window.setTimeout(() => {
       setLoginStalled(true);
+      pushLoginDebug("login: stalled timeout");
       toast.error("Login terlalu lama. Kemungkinan browser masih memakai cache versi lama.");
     }, 12000);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
   }, [isLoggingIn]);
 
   const submitLogin = async () => {
     const normalizedEmail = email.trim().toLowerCase();
+    pushLoginDebug("login: submit click", { email: normalizedEmail });
     if (!normalizedEmail || !password) {
+      pushLoginDebug("login: validation failed", { hasEmail: !!normalizedEmail, hasPassword: !!password });
       toast.error("Email dan kata sandi wajib diisi.");
       return;
     }
@@ -61,6 +74,7 @@ function LoginPage() {
   };
 
   const handleQuickLogin = async (nextEmail: string, nextPassword: string) => {
+    pushLoginDebug("login: quick login", { email: nextEmail });
     setEmail(nextEmail);
     setPassword(nextPassword);
 
@@ -141,17 +155,60 @@ function LoginPage() {
           </button>
 
           {loginStalled && (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  pushLoginDebug("login: manual reload");
+                  window.location.reload();
+                }}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+              >
+                Muat Ulang Halaman
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearLoginDebugEntries();
+                  setDebugEntries([]);
+                }}
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-xs font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent"
+              >
+                Hapus Log Debug
+              </button>
+            </div>
+          )}
+        </form>
+
+        <div className="mt-6 rounded-xl border border-border/60 bg-muted/30 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground">
+              Login Debug
+            </p>
             <button
               type="button"
               onClick={() => {
-                window.location.reload();
+                clearLoginDebugEntries();
+                setDebugEntries([]);
               }}
-              className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-bold uppercase tracking-wider text-foreground transition-colors hover:bg-accent"
+              className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground underline"
             >
-              Muat Ulang Halaman
+              Clear
             </button>
-          )}
-        </form>
+          </div>
+          <div className="max-h-44 overflow-auto rounded-lg bg-background/70 p-3 font-mono text-[10px] leading-5 text-foreground">
+            {debugEntries.length === 0 ? (
+              <p>Belum ada log.</p>
+            ) : (
+              debugEntries.map((entry, index) => (
+                <p key={`${entry.at}-${index}`}>
+                  [{new Date(entry.at).toLocaleTimeString("id-ID", { hour12: false })}] {entry.message}
+                  {entry.detail ? ` :: ${entry.detail}` : ""}
+                </p>
+              ))
+            )}
+          </div>
+        </div>
 
         <div className="mt-8 pt-6 border-t border-dashed border-border/60">
           <div className="space-y-3">

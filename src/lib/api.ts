@@ -107,14 +107,17 @@ async function performRequest<T>(
 
   try {
     console.log(`[API] 📡 fetch → ${url.toString().slice(0, 100)}`);
+    pushLoginDebug("api: fetch send", { action, method });
     const response = await fetch(url.toString(), options);
     console.log(`[API] ✅ response status=${response.status} ok=${response.ok}`);
 
+    pushLoginDebug("api: fetch response", { status: response.status, ok: response.ok });
     if (!response.ok) {
       throw new ApiError(`Network Error: ${response.status} ${response.statusText}`, response.status);
     }
 
     const data: ApiResponse = await response.json();
+    pushLoginDebug("api: response body", data);
     console.log(`[API] 📦 data=`, data);
 
     if (!data.success) {
@@ -123,6 +126,7 @@ async function performRequest<T>(
 
     return data as T;
   } catch (error: any) {
+    pushLoginDebug("api: catch", { name: error?.name, message: error?.message });
     console.error(`[API] ❌ CATCH name=${error?.name} message=${error?.message}`);
     if (error instanceof ApiError) throw error;
 
@@ -143,6 +147,7 @@ async function performRequest<T>(
     console.error(`[API FAIL] ${method} ${action}:`, error);
     throw new ApiError(error?.message || "Koneksi ke server terputus.");
   } finally {
+    pushLoginDebug("api: finally");
     console.log(`[API] 🏁 finally — clearing timeout`);
     window.clearTimeout(timeoutId);
   }
