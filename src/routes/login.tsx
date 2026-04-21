@@ -160,6 +160,7 @@ function LoginPage() {
             <div className="grid grid-cols-1 gap-2">
               <button 
                 type="button"
+                disabled={isLoggingIn}
                 onClick={() => {
                   void handleQuickLogin("admin@maswh.id", "admin123");
                 }}
@@ -177,6 +178,7 @@ function LoginPage() {
 
               <button 
                 type="button"
+                disabled={isLoggingIn}
                 onClick={() => {
                   void handleQuickLogin("petugas@maswh.id", "petugas123");
                 }}

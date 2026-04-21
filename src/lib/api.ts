@@ -32,9 +32,11 @@ function isLocalHost() {
 }
 
 function getApiBaseUrl() {
-  if (APPS_SCRIPT_URL) return APPS_SCRIPT_URL;
+  // In production (non-localhost), always use the Vercel proxy to avoid
+  // GAS redirect stripping POST bodies and to hide the GAS URL from clients.
   if (!isLocalHost()) return PROXY_API_PATH;
-  return "";
+  // In local dev, go directly to GAS if configured
+  return APPS_SCRIPT_URL;
 }
 
 export const USE_MOCK = isLocalHost() && !APPS_SCRIPT_URL;
