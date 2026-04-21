@@ -51,7 +51,9 @@ async function performRequest<T>(
   }
 
   const apiBaseUrl = getApiBaseUrl();
+  console.log(`[API] 🚀 ${action} | base=${apiBaseUrl || "(empty)"} | mock=${USE_MOCK} | localhost=${isLocalHost()}`);
   if (!apiBaseUrl) {
+    console.error("[API] ❌ No API URL configured!");
     throw new ApiError("VITE_APPS_SCRIPT_URL is not configured. Check your environment variables.");
   }
 
@@ -59,6 +61,7 @@ async function performRequest<T>(
   const url = usingProxy
     ? new URL(apiBaseUrl, window.location.origin)
     : new URL(apiBaseUrl);
+  console.log(`[API] 🌐 usingProxy=${usingProxy} | fullUrl=${url.toString().slice(0, 80)}`);
 
   const session = getSession();
   const token = session?.token || "";
@@ -93,13 +96,16 @@ async function performRequest<T>(
   }
 
   try {
+    console.log(`[API] 📡 fetch → ${url.toString().slice(0, 100)}`);
     const response = await fetch(url.toString(), options);
+    console.log(`[API] ✅ response status=${response.status} ok=${response.ok}`);
 
     if (!response.ok) {
       throw new ApiError(`Network Error: ${response.status} ${response.statusText}`, response.status);
     }
 
     const data: ApiResponse = await response.json();
+    console.log(`[API] 📦 data=`, data);
 
     if (!data.success) {
       throw new ApiError(data.message || "Operation failed", 400, data);
@@ -107,6 +113,7 @@ async function performRequest<T>(
 
     return data as T;
   } catch (error: any) {
+    console.error(`[API] ❌ CATCH name=${error?.name} message=${error?.message}`);
     if (error instanceof ApiError) throw error;
 
     if (error?.name === "AbortError") {
@@ -126,6 +133,7 @@ async function performRequest<T>(
     console.error(`[API FAIL] ${method} ${action}:`, error);
     throw new ApiError(error?.message || "Koneksi ke server terputus.");
   } finally {
+    console.log(`[API] 🏁 finally — clearing timeout`);
     window.clearTimeout(timeoutId);
   }
 }

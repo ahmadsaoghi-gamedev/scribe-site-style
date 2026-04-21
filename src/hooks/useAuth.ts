@@ -10,9 +10,13 @@ import { toast } from "sonner";
 export function useAuth() {
   const loginMutation = useMutation({
     mutationFn: async (credentials: Record<string, string>) => {
-      return apiPost("login", credentials);
+      console.log("[AUTH] 🔑 login called with:", credentials.email);
+      const result = await apiPost("login", credentials);
+      console.log("[AUTH] 🟢 apiPost resolved:", result);
+      return result;
     },
     onSuccess: (res) => {
+      console.log("[AUTH] ✅ onSuccess:", res);
       // res is already validated and cast to the right type by apiPost
       setSession({
         token: res.token,
@@ -24,11 +28,13 @@ export function useAuth() {
       toast.success(`Selamat datang, ${res.nama}`);
       
       const destination = res.role === "admin" ? "/admin" : "/dashboard";
+      console.log("[AUTH] 🧭 navigating to", destination);
       if (typeof window !== "undefined") {
         window.location.replace(destination);
       }
     },
     onError: (error: any) => {
+      console.error("[AUTH] ❌ onError:", error?.message, error);
       // The API client already provides a detailed error message
       toast.error(error.message || "Gagal masuk ke sistem. Periksa kembali email dan password Anda.");
     }
