@@ -18,6 +18,17 @@ export default defineConfig(({ mode }) => {
       TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
       react(),
       tsconfigPaths(),
+      {
+        name: "rename-html",
+        enforce: "post",
+        generateBundle(options, bundle) {
+          if (bundle["index.spa.html"]) {
+            bundle["index.html"] = bundle["index.spa.html"];
+            bundle["index.html"].fileName = "index.html";
+            delete bundle["index.spa.html"];
+          }
+        },
+      },
     ],
     define: {
       // Inject VITE_ env vars so they work in static builds
@@ -26,7 +37,7 @@ export default defineConfig(({ mode }) => {
       ),
     },
     build: {
-      outDir: "dist-spa",
+      outDir: "dist/client",
       emptyOutDir: true,
       rollupOptions: {
         input: "index.spa.html",
