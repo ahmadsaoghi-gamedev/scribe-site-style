@@ -45,13 +45,17 @@ export function pushLoginDebug(message: string, detail?: unknown) {
   ].slice(-MAX_ENTRIES);
 
   window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(nextEntries));
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: nextEntries }));
+  window.setTimeout(() => {
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: nextEntries }));
+  }, 0);
 }
 
 export function clearLoginDebugEntries() {
   if (typeof window === "undefined") return;
   window.sessionStorage.removeItem(STORAGE_KEY);
-  window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: [] }));
+  window.setTimeout(() => {
+    window.dispatchEvent(new CustomEvent(EVENT_NAME, { detail: [] }));
+  }, 0);
 }
 
 export function subscribeLoginDebug(listener: (entries: LoginDebugEntry[]) => void) {
