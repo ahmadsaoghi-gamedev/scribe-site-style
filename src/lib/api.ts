@@ -1,5 +1,6 @@
 import { mockHandler } from "./mock";
 import { getSession } from "./auth";
+import { pushLoginDebug } from "./loginDebug";
 
 export interface ApiResponse {
   success: boolean;
@@ -47,12 +48,20 @@ async function performRequest<T>(
   payload: any = {}
 ): Promise<T> {
   if (USE_MOCK) {
+    pushLoginDebug("api: mock mode", { action, method });
     return mockHandler(action, method, payload) as T;
   }
 
   const apiBaseUrl = getApiBaseUrl();
+  pushLoginDebug("api: request start", {
+    action,
+    method,
+    base: apiBaseUrl || "(empty)",
+    localhost: isLocalHost(),
+  });
   console.log(`[API] 🚀 ${action} | base=${apiBaseUrl || "(empty)"} | mock=${USE_MOCK} | localhost=${isLocalHost()}`);
   if (!apiBaseUrl) {
+    pushLoginDebug("api: missing base url");
     console.error("[API] ❌ No API URL configured!");
     throw new ApiError("VITE_APPS_SCRIPT_URL is not configured. Check your environment variables.");
   }
@@ -61,6 +70,7 @@ async function performRequest<T>(
   const url = usingProxy
     ? new URL(apiBaseUrl, window.location.origin)
     : new URL(apiBaseUrl);
+  pushLoginDebug("api: resolved url", { usingProxy, url: url.toString() });
   console.log(`[API] 🌐 usingProxy=${usingProxy} | fullUrl=${url.toString().slice(0, 80)}`);
 
   const session = getSession();
