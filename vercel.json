@@ -1,6 +1,6 @@
 {
-  "outputDirectory": "dist-spa",
+  "outputDirectory": "dist/client",
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/index.spa.html" }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }
