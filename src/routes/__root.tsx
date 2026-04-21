@@ -5,8 +5,6 @@ import { queryClient } from "../router";
 import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
-import { InstallPrompt } from "@/components/InstallPrompt";
-import { registerServiceWorker } from "@/lib/pwa";
 
 function NotFoundComponent() {
   return (
@@ -41,7 +39,6 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/manifest.json" },
       { rel: "apple-touch-icon", href: "https://i.imgur.com/HSaZx8r.jpeg" },
       { rel: "icon", href: "https://i.imgur.com/HSaZx8r.jpeg" },
     ],
@@ -67,14 +64,23 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   useEffect(() => {
-    registerServiceWorker();
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+    navigator.serviceWorker.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    });
+
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => caches.delete(key));
+      });
+    }
   }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
       <Toaster richColors position="top-center" />
-      <InstallPrompt />
     </QueryClientProvider>
   );
 }
