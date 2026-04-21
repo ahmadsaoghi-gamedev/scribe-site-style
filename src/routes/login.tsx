@@ -40,9 +40,8 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-primary/10 via-background to-accent/20 p-4 transition-colors duration-1000">
-      <Toaster richColors position="top-center" />
-      
-      <Card className="w-full max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 animate-in fade-in zoom-in-95 duration-700 bg-background/80 backdrop-blur-sm">
+      <Card className="w-full relative z-10 max-w-md p-8 shadow-2xl border-none ring-1 ring-border/50 animate-in fade-in zoom-in-95 duration-700 bg-background">
+        <Toaster richColors position="top-center" />
         <div className="flex flex-col items-center text-center mb-8">
           <div className="relative mb-4 group cursor-pointer">
             <div className="absolute inset-0 rounded-full bg-primary/20 animate-pulse group-hover:scale-125 transition-transform duration-500" />
@@ -66,7 +65,7 @@ function LoginPage() {
               value={email} 
               onChange={(e) => setEmail(e.target.value)} 
               placeholder="nama@domain.sch.id" 
-              className="h-12 bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
+              className="h-12 relative z-50 pointer-events-auto bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
             />
           </div>
           <div className="space-y-2">
@@ -77,14 +76,14 @@ function LoginPage() {
               required 
               value={password} 
               onChange={(e) => setPassword(e.target.value)} 
-              className="h-12 bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
+              className="h-12 relative z-50 pointer-events-auto bg-accent/30 border-none ring-1 ring-border/50 focus-visible:ring-primary focus-visible:bg-background transition-all"
             />
           </div>
           
           <Button 
             type="submit" 
             disabled={isLoggingIn} 
-            className="w-full h-12 shadow-lg shadow-primary/25 text-base font-black tracking-widest uppercase rounded-xl transition-all hover:scale-[1.02] active:scale-95"
+            className="w-full relative z-50 pointer-events-auto h-12 shadow-lg shadow-primary/25 text-base font-black tracking-widest uppercase rounded-xl transition-all hover:scale-[1.02] active:scale-95"
           >
             {isLoggingIn ? (
               <SmartLoader size="sm" className="mr-2" />
