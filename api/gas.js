@@ -69,15 +69,25 @@ export default async function handler(req, res) {
         signal: controller.signal,
       });
     } else if (method === "POST") {
-      const body = await readBody(req);
-      const url = withAction(appsScriptUrl, action);
+      const bodyStr = await readBody(req);
+      let parsedBody = {};
+      try {
+        parsedBody = JSON.parse(bodyStr);
+      } catch (e) {
+        // Continue even if parsing fails
+      }
 
-      upstreamResponse = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "text/plain",
-        },
-        body,
+      const searchParams = Object.entries(req.query || {});
+      const url = withAction(appsScriptUrl, action, searchParams);
+
+      for (const [key, value] of Object.entries(parsedBody)) {
+        if (key === "action" || value == null) continue;
+        url.searchParams.set(key, String(value));
+      }
+
+      // Convert POST to GET because GAS 302 redirects lose the POST body!
+      upstreamResponse = await fetch(url.toString(), {
+        method: "GET",
         signal: controller.signal,
       });
     } else {

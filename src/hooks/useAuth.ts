@@ -1,7 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { apiPost } from "@/lib/api";
 import { setSession, clearSession } from "@/lib/auth";
-import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 /**
@@ -9,8 +8,6 @@ import { toast } from "sonner";
  * Centralizes login logic, session persistence, and navigation.
  */
 export function useAuth() {
-  const navigate = useNavigate();
-
   const loginMutation = useMutation({
     mutationFn: async (credentials: Record<string, string>) => {
       return apiPost("login", credentials);
@@ -27,7 +24,9 @@ export function useAuth() {
       toast.success(`Selamat datang, ${res.nama}`);
       
       const destination = res.role === "admin" ? "/admin" : "/dashboard";
-      navigate({ to: destination });
+      if (typeof window !== "undefined") {
+        window.location.replace(destination);
+      }
     },
     onError: (error: any) => {
       // The API client already provides a detailed error message
@@ -38,7 +37,9 @@ export function useAuth() {
   const logout = () => {
     clearSession();
     toast.info("Anda telah keluar dari sistem.");
-    navigate({ to: "/login" });
+    if (typeof window !== "undefined") {
+      window.location.replace("/login");
+    }
   };
 
   return {
