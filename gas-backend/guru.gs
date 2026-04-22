@@ -36,8 +36,8 @@ function handleAddGuru(body) {
 
   // Cek duplikasi NIP
   const existing = findRowByField(SHEETS.GURU, "nip", nip.trim());
-  if (existing) {
-    return errorResponse("NIP sudah terdaftar.");
+  if (existing && existing.nama !== nama.trim()) {
+    return errorResponse("NIP sudah terdaftar untuk guru lain: " + existing.nama);
   }
 
   const guru = {
@@ -70,8 +70,8 @@ function handleEditGuru(body) {
   // Cek duplikasi NIP (jika NIP diubah)
   if (nip && nip.trim() !== existing.nip) {
     const nipConflict = findRowByField(SHEETS.GURU, "nip", nip.trim());
-    if (nipConflict && nipConflict.id !== id) {
-      return errorResponse("NIP sudah digunakan oleh guru lain.");
+    if (nipConflict && nipConflict.id !== id && nipConflict.nama !== (nama ? nama.trim() : existing.nama)) {
+      return errorResponse("NIP sudah digunakan oleh guru lain: " + nipConflict.nama);
     }
   }
 

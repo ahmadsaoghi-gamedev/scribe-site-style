@@ -32,7 +32,7 @@ const SESSION_DURATION_MS = 8 * 60 * 60 * 1000;
 const VALID_STATUS = ["Hadir", "Terlambat", "Tidak Hadir", "Kosong"];
 
 // Hari valid
-const VALID_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat"];
+const VALID_HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
 
 // Batas jam per hari
 const MAX_JAM = {
@@ -40,7 +40,8 @@ const MAX_JAM = {
   "Selasa": 9,
   "Rabu":   9,
   "Kamis":  9,
-  "Jumat":  6
+  "Jumat":  6,
+  "Sabtu":  9
 };
 
 // Akun admin default (seed)

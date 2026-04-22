@@ -6,7 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { useGuru, Guru } from "@/hooks/useGuru";
 import { SmartLoader, FullPageLoader } from "@/components/SmartLoader";
@@ -50,6 +56,23 @@ function GuruPage() {
       return;
     }
 
+    // Check duplicate NIP
+    const existingByNip = gurus.find((g) => g.nip === form.nip && g.id !== edit?.id);
+    if (existingByNip) {
+      toast.error(`NIP "${form.nip}" sudah digunakan oleh guru lain`);
+      return;
+    }
+
+    // Check duplicate (nama + nip) - same name with different nip
+    const existingByName = gurus.filter(
+      (g) => g.nama.toLowerCase() === form.nama.toLowerCase() && g.id !== edit?.id,
+    );
+    if (existingByName.length > 0) {
+      const nipList = existingByName.map((g) => g.nip).join(", ");
+      toast.error(`Nama "${form.nama}" sudah terdaftar dengan NIP: ${nipList}`);
+      return;
+    }
+
     try {
       await save(edit ? { id: edit.id, ...form } : form);
       setOpen(false);
@@ -67,7 +90,10 @@ function GuruPage() {
           <h1 className="text-3xl font-extrabold tracking-tight">Data Guru</h1>
           <p className="text-muted-foreground">Sistem manajemen tenaga pendidik terpusat</p>
         </div>
-        <Button onClick={openAdd} className="shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95">
+        <Button
+          onClick={openAdd}
+          className="shadow-lg shadow-primary/20 transition-all hover:scale-105 active:scale-95"
+        >
           <Plus className="h-4 w-4 mr-2" /> Tambah Guru
         </Button>
       </div>
@@ -78,8 +104,12 @@ function GuruPage() {
             <thead className="bg-muted/50 border-b">
               <tr>
                 <th className="p-4 text-left font-semibold text-muted-foreground">No</th>
-                <th className="p-4 text-left font-semibold text-muted-foreground">Informasi Guru</th>
-                <th className="p-4 text-left font-semibold text-muted-foreground">Mata Pelajaran</th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">
+                  Informasi Guru
+                </th>
+                <th className="p-4 text-left font-semibold text-muted-foreground">
+                  Mata Pelajaran
+                </th>
                 <th className="p-4 text-left font-semibold text-muted-foreground">Status</th>
                 <th className="p-4 text-right font-semibold text-muted-foreground">Manajemen</th>
               </tr>
@@ -98,36 +128,44 @@ function GuruPage() {
                     <td className="p-4">
                       <div className="flex flex-col">
                         <span className="font-bold text-foreground text-base">{g.nama}</span>
-                        <span className="text-xs font-mono text-muted-foreground tracking-wider uppercase">NIP: {g.nip}</span>
+                        <span className="text-xs font-mono text-muted-foreground tracking-wider uppercase">
+                          NIP: {g.nip}
+                        </span>
                       </div>
                     </td>
                     <td className="p-4 font-medium">{g.mapel}</td>
                     <td className="p-4">
-                      <Badge 
+                      <Badge
                         variant={g.aktif ? "default" : "secondary"}
-                        className={g.aktif ? "bg-green-500/10 text-green-600 border-green-500/20" : ""}
+                        className={
+                          g.aktif ? "bg-green-500/10 text-green-600 border-green-500/20" : ""
+                        }
                       >
                         {g.aktif ? "Aktif" : "Nonaktif"}
                       </Badge>
                     </td>
                     <td className="p-4 text-right">
                       <div className="flex justify-end gap-1">
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           className="hover:text-primary hover:bg-primary/10"
                           onClick={() => openEdit(g)}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button 
-                          size="icon" 
-                          variant="ghost" 
+                        <Button
+                          size="icon"
+                          variant="ghost"
                           className="hover:text-destructive hover:bg-destructive/10"
                           onClick={() => remove(g.id)}
                           disabled={isDeleting}
                         >
-                          {isDeleting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          {isDeleting ? (
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </td>
@@ -142,38 +180,46 @@ function GuruPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="sm:max-w-md shadow-2xl ring-1 ring-border/50">
           <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">{edit ? "Perbarui Data Guru" : "Registrasi Guru Baru"}</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">
+              {edit ? "Perbarui Data Guru" : "Registrasi Guru Baru"}
+            </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label htmlFor="nama" className="text-sm font-semibold">Nama Lengkap & Gelar</Label>
-              <Input 
+              <Label htmlFor="nama" className="text-sm font-semibold">
+                Nama Lengkap & Gelar
+              </Label>
+              <Input
                 id="nama"
-                placeholder="Contoh: Budi Santoso, S.Pd" 
-                value={form.nama} 
-                onChange={(e) => setForm({ ...form, nama: e.target.value })} 
+                placeholder="Contoh: Budi Santoso, S.Pd"
+                value={form.nama}
+                onChange={(e) => setForm({ ...form, nama: e.target.value })}
                 className="focus-visible:ring-primary"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="nip" className="text-sm font-semibold">NIP</Label>
-                <Input 
+                <Label htmlFor="nip" className="text-sm font-semibold">
+                  NIP
+                </Label>
+                <Input
                   id="nip"
-                  placeholder="18 digit NIP" 
-                  value={form.nip} 
-                  onChange={(e) => setForm({ ...form, nip: e.target.value })} 
+                  placeholder="18 digit NIP"
+                  value={form.nip}
+                  onChange={(e) => setForm({ ...form, nip: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="mapel" className="text-sm font-semibold">Mata Pelajaran</Label>
-                <Input 
+                <Label htmlFor="mapel" className="text-sm font-semibold">
+                  Mata Pelajaran
+                </Label>
+                <Input
                   id="mapel"
-                  placeholder="Utama" 
-                  value={form.mapel} 
-                  onChange={(e) => setForm({ ...form, mapel: e.target.value })} 
+                  placeholder="Utama"
+                  value={form.mapel}
+                  onChange={(e) => setForm({ ...form, mapel: e.target.value })}
                 />
               </div>
             </div>
@@ -182,23 +228,23 @@ function GuruPage() {
               <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
                 <div className="space-y-0.5">
                   <Label className="text-sm font-bold">Status Keaktifan</Label>
-                  <p className="text-xs text-muted-foreground leading-none">Guru dapat melakukan absensi jika aktif</p>
+                  <p className="text-xs text-muted-foreground leading-none">
+                    Guru dapat melakukan absensi jika aktif
+                  </p>
                 </div>
-                <Switch 
-                  checked={form.aktif} 
-                  onCheckedChange={(v) => setForm({ ...form, aktif: v })} 
+                <Switch
+                  checked={form.aktif}
+                  onCheckedChange={(v) => setForm({ ...form, aktif: v })}
                 />
               </div>
             )}
           </div>
 
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setOpen(false)} disabled={isSaving}>Batal</Button>
-            <Button 
-              onClick={handleSave} 
-              disabled={isSaving}
-              className="px-8"
-            >
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={isSaving}>
+              Batal
+            </Button>
+            <Button onClick={handleSave} disabled={isSaving} className="px-8">
               {isSaving ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : null}
               {edit ? "Simpan Perubahan" : "Daftarkan Guru"}
             </Button>

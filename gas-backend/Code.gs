@@ -36,6 +36,15 @@ function doGet(e) {
       case "getKelas":
         return handleGetKelas(params);
 
+      case "addKelas":
+        return handleAddKelas(params);
+
+      case "editKelas":
+        return handleEditKelas(params);
+
+      case "deleteKelas":
+        return handleDeleteKelas(params);
+
       // --- Jadwal ---
       case "getJadwal":
         return handleGetJadwal(params);
@@ -144,6 +153,16 @@ function doPost(e) {
 
       case "deleteGuru":
         return handleDeleteGuru(body);
+
+      // --- Kelas ---
+      case "addKelas":
+        return handleAddKelas(body);
+
+      case "editKelas":
+        return handleEditKelas(body);
+
+      case "deleteKelas":
+        return handleDeleteKelas(body);
 
       // --- Jadwal ---
       case "setJadwal":

@@ -18,6 +18,7 @@ import { Route as DashboardRiwayatRouteImport } from './routes/dashboard.riwayat
 import { Route as DashboardProfilRouteImport } from './routes/dashboard.profil'
 import { Route as AdminPetugasRouteImport } from './routes/admin.petugas'
 import { Route as AdminLaporanRouteImport } from './routes/admin.laporan'
+import { Route as AdminKelasRouteImport } from './routes/admin.kelas'
 import { Route as AdminJadwalRouteImport } from './routes/admin.jadwal'
 import { Route as AdminGuruRouteImport } from './routes/admin.guru'
 
@@ -66,6 +67,11 @@ const AdminLaporanRoute = AdminLaporanRouteImport.update({
   path: '/laporan',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminKelasRoute = AdminKelasRouteImport.update({
+  id: '/kelas',
+  path: '/kelas',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminJadwalRoute = AdminJadwalRouteImport.update({
   id: '/jadwal',
   path: '/jadwal',
@@ -84,6 +90,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/kelas': typeof AdminKelasRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
   '/dashboard/profil': typeof DashboardProfilRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/kelas': typeof AdminKelasRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
   '/dashboard/profil': typeof DashboardProfilRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/admin/guru': typeof AdminGuruRoute
   '/admin/jadwal': typeof AdminJadwalRoute
+  '/admin/kelas': typeof AdminKelasRoute
   '/admin/laporan': typeof AdminLaporanRoute
   '/admin/petugas': typeof AdminPetugasRoute
   '/dashboard/profil': typeof DashboardProfilRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/guru'
     | '/admin/jadwal'
+    | '/admin/kelas'
     | '/admin/laporan'
     | '/admin/petugas'
     | '/dashboard/profil'
@@ -137,6 +147,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/guru'
     | '/admin/jadwal'
+    | '/admin/kelas'
     | '/admin/laporan'
     | '/admin/petugas'
     | '/dashboard/profil'
@@ -150,6 +161,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/guru'
     | '/admin/jadwal'
+    | '/admin/kelas'
     | '/admin/laporan'
     | '/admin/petugas'
     | '/dashboard/profil'
@@ -229,6 +241,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminLaporanRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/kelas': {
+      id: '/admin/kelas'
+      path: '/kelas'
+      fullPath: '/admin/kelas'
+      preLoaderRoute: typeof AdminKelasRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/jadwal': {
       id: '/admin/jadwal'
       path: '/jadwal'
@@ -249,6 +268,7 @@ declare module '@tanstack/react-router' {
 interface AdminRouteChildren {
   AdminGuruRoute: typeof AdminGuruRoute
   AdminJadwalRoute: typeof AdminJadwalRoute
+  AdminKelasRoute: typeof AdminKelasRoute
   AdminLaporanRoute: typeof AdminLaporanRoute
   AdminPetugasRoute: typeof AdminPetugasRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -257,6 +277,7 @@ interface AdminRouteChildren {
 const AdminRouteChildren: AdminRouteChildren = {
   AdminGuruRoute: AdminGuruRoute,
   AdminJadwalRoute: AdminJadwalRoute,
+  AdminKelasRoute: AdminKelasRoute,
   AdminLaporanRoute: AdminLaporanRoute,
   AdminPetugasRoute: AdminPetugasRoute,
   AdminIndexRoute: AdminIndexRoute,
