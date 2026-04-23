@@ -20,6 +20,24 @@ export const Route = createFileRoute("/admin/jadwal")({
 const HARI = ["Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"] as const;
 type Hari = (typeof HARI)[number];
 
+/** Deterministic hue from mapel name — same mapel always gets same color */
+function mapelHue(mapel: string): number {
+  let hash = 0;
+  for (let i = 0; i < mapel.length; i++) {
+    hash = (hash * 31 + mapel.charCodeAt(i)) & 0xffff;
+  }
+  return hash % 360;
+}
+
+function mapelStyle(mapel: string): React.CSSProperties {
+  const hue = mapelHue(mapel);
+  return {
+    backgroundColor: `hsl(${hue}, 60%, 93%)`,
+    borderColor: `hsl(${hue}, 55%, 72%)`,
+    color: `hsl(${hue}, 55%, 28%)`,
+  };
+}
+
 /** Jumat has a shorter school day */
 const maxJam = (h: Hari) => (h === "Jumat" ? 6 : 9);
 
@@ -115,14 +133,15 @@ function JadwalPage() {
                           <button
                             onClick={() => setEdit({ hari: h, jam_ke: j, guru_id: cell?.guru_id || "", mapel: cell?.mapel || "" })}
                             className={cn(
-                              "text-left w-full p-2 rounded-lg hover:bg-primary/5 hover:border-primary/20 border transition-all group relative",
-                              cell ? "border-border bg-card" : "border-dashed border-border/40 bg-transparent"
+                              "text-left w-full p-2 rounded-lg border transition-all group relative",
+                              cell ? "border hover:opacity-90" : "border-dashed border-border/40 bg-transparent hover:bg-primary/5 hover:border-primary/20"
                             )}
+                            style={cell?.mapel ? mapelStyle(cell.mapel) : undefined}
                           >
                             {cell ? (
                               <>
                                 <p className="font-semibold truncate text-xs leading-tight">{cell.nama_guru}</p>
-                                <p className="text-[10px] text-muted-foreground truncate mt-0.5">{cell.mapel}</p>
+                                <p className="text-[10px] truncate mt-0.5 opacity-70">{cell.mapel}</p>
                               </>
                             ) : (
                               <span className="text-muted-foreground/40 text-[10px] italic">+ Atur</span>
