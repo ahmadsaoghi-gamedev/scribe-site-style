@@ -40,7 +40,6 @@ const NAV = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/kelas", label: "Data Kelas", icon: School },
   { to: "/admin/guru", label: "Data Guru", icon: Users },
-  { to: "/admin/kelas", label: "Data Kelas", icon: School },
   { to: "/admin/jadwal", label: "Jadwal", icon: Calendar },
   { to: "/admin/petugas", label: "Akun Petugas", icon: UserCog },
   { to: "/admin/laporan", label: "Laporan", icon: FileBarChart },

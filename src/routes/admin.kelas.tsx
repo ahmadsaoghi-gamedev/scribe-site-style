@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
 import { useKelas, Kelas } from "@/hooks/useKelas";
 import { SmartLoader, FullPageLoader } from "@/components/SmartLoader";
@@ -30,6 +40,7 @@ const kelasSchema = z.object({
 function KelasPage() {
   const { kelas, isLoading, isSaving, isDeleting, save, remove } = useKelas();
   const [open, setOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [edit, setEdit] = useState<Kelas | null>(null);
   const [form, setForm] = useState({ nama_kelas: "", wali_kelas: "" });
 
@@ -60,15 +71,13 @@ function KelasPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (
-      confirm("Apakah Anda yakin ingin menghapus kelas ini? Tindakan ini tidak dapat dibatalkan.")
-    ) {
-      try {
-        await remove(id);
-      } catch (e) {
-        // Error handled by hook
-      }
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await remove(deleteId);
+      setDeleteId(null);
+    } catch (e) {
+      // Error handled by hook
     }
   };
 
@@ -129,7 +138,7 @@ function KelasPage() {
                           size="icon"
                           variant="ghost"
                           className="hover:text-destructive hover:bg-destructive/10"
-                          onClick={() => handleDelete(k.id)}
+                          onClick={() => setDeleteId(k.id)}
                           disabled={isDeleting}
                         >
                           {isDeleting ? (
@@ -194,6 +203,29 @@ function KelasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-bold">Hapus Kelas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus kelas ini? Tindakan ini tidak dapat dibatalkan dan
+              mungkin akan menghapus data terkait jadwal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-semibold uppercase tracking-wide text-xs">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-semibold uppercase tracking-wide text-xs"
+            >
+              Hapus Kelas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -24,7 +24,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Pencil, Trash2, Key, RefreshCw } from "lucide-react";
 import { usePetugas } from "@/hooks/usePetugas";
 import { useKelas } from "@/hooks/useKelas";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { SmartLoader } from "@/components/SmartLoader";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/petugas")({
   component: PetugasPage,
@@ -39,6 +50,9 @@ function PetugasPage() {
   const { kelas: kelasList, isLoading: isLoadingKelas } = useKelas();
 
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [resetId, setResetId] = useState<string | null>(null);
+  const [newPassword, setNewPassword] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
 
@@ -82,23 +96,26 @@ function PetugasPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Hapus petugas ini dari sistem?")) return;
+  const handleDelete = async () => {
+    if (!deleteId) return;
     try {
-      await remove(id);
+      await remove(deleteId);
+      setDeleteId(null);
     } catch {
       /* Error toast by hook */
     }
   };
 
-  const handleResetPassword = async (id: string) => {
-    const np = window.prompt("Masukkan password baru untuk petugas ini:");
-    if (!np || np.trim().length < 6) {
-      if (np !== null) alert("Password minimal 6 karakter.");
+  const handleResetPassword = async () => {
+    if (!resetId || !newPassword.trim()) return;
+    if (newPassword.trim().length < 6) {
+      toast.error("Password minimal 6 karakter.");
       return;
     }
     try {
-      await resetPassword({ id, new_password: np.trim() });
+      await resetPassword({ id: resetId, new_password: newPassword.trim() });
+      setResetId(null);
+      setNewPassword("");
     } catch {
       /* Error toast by hook */
     }
@@ -192,7 +209,10 @@ function PetugasPage() {
                           variant="ghost"
                           className="h-8 w-8"
                           title="Reset password"
-                          onClick={() => handleResetPassword(p.id)}
+                          onClick={() => {
+                            setResetId(p.id);
+                            setNewPassword("");
+                          }}
                         >
                           <Key className="h-3.5 w-3.5" />
                         </Button>
@@ -202,7 +222,7 @@ function PetugasPage() {
                           className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                           title="Hapus petugas"
                           disabled={isDeleting}
-                          onClick={() => handleDelete(p.id)}
+                          onClick={() => setDeleteId(p.id)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
@@ -337,6 +357,68 @@ function PetugasPage() {
               ) : (
                 "SIMPAN"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-xl font-black">Hapus Petugas?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tindakan ini akan menghapus akun petugas dari sistem secara permanen. Petugas tidak
+              akan bisa login lagi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="font-bold uppercase text-xs tracking-widest">
+              Batal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 font-bold uppercase text-xs tracking-widest"
+            >
+              Hapus Sekarang
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!resetId} onOpenChange={(o) => !o && setResetId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black">Reset Password</DialogTitle>
+            <DialogDescription>Masukkan password baru untuk akun petugas ini.</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="new-password">Password Baru</Label>
+            <Input
+              id="new-password"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Minimal 6 karakter"
+              className="mt-2"
+              autoFocus
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setResetId(null)}
+              className="font-bold uppercase text-xs tracking-widest"
+            >
+              Batal
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={newPassword.length < 6}
+              className="font-bold uppercase text-xs tracking-widest px-8"
+            >
+              Update Password
             </Button>
           </DialogFooter>
         </DialogContent>
