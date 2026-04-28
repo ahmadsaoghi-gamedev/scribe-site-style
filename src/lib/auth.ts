@@ -39,4 +39,5 @@ export const SCHOOL = {
   name: "MAS WAHID HASYIM BALUNG JEMBER",
   address: "Jalan Puger No. 20 Balung",
   logo: "https://i.imgur.com/HSaZx8r.jpeg",
+  kota: "Jember",
 };

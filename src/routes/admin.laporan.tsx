@@ -1,24 +1,31 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Printer, FileBarChart2, Search } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Printer, FileBarChart2, Search, Settings } from "lucide-react";
 import { KopSurat } from "@/components/KopSurat";
 import { useLaporan, type PeriodeType } from "@/hooks/useLaporan";
+import { getSession, SCHOOL } from "@/lib/auth";
+import { getSchoolSettings, saveSchoolSettings, type SchoolSettings } from "@/lib/schoolSettings";
 import { SmartLoader } from "@/components/SmartLoader";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/laporan")({
   component: LaporanPage,
 });
 
-// NIP & Name sourced from config — not hardcoded in UI logic
-const ADMIN_NIP = "196501011990031001";
-const ADMIN_NAMA = "Administrator";
-
 function LaporanPage() {
+  const session = useMemo(() => getSession(), []);
   const today = new Date().toISOString().slice(0, 10);
   const [tab, setTab] = useState<PeriodeType>("harian");
   const [tanggal, setTanggal] = useState(today);
@@ -29,29 +36,96 @@ function LaporanPage() {
 
   const { rows, label, isLoading, fetch } = useLaporan();
 
+  // Settings state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settings, setSettings] = useState<SchoolSettings>(() => getSchoolSettings());
+  const [draft, setDraft] = useState<SchoolSettings["kepalaSekolah"]>(settings.kepalaSekolah);
+
+  const openSettings = () => {
+    setDraft({ ...settings.kepalaSekolah });
+    setSettingsOpen(true);
+  };
+
+  const saveSettings = () => {
+    const next: SchoolSettings = { kepalaSekolah: draft };
+    saveSchoolSettings(next);
+    setSettings(next);
+    setSettingsOpen(false);
+    toast.success("Pengaturan tanda tangan disimpan.");
+  };
+
   const handleFetch = () => {
     if (tab === "harian") fetch({ periodeType: "harian", tanggal });
     else if (tab === "mingguan") fetch({ periodeType: "mingguan", dari, sampai });
     else fetch({ periodeType: "bulanan", bulan, tahun });
   };
 
-  const totalHadir       = rows.reduce((s, r) => s + (r.total_hadir || 0), 0);
-  const totalTerlambat   = rows.reduce((s, r) => s + (r.total_terlambat || 0), 0);
-  const totalTidakHadir  = rows.reduce((s, r) => s + (r.total_tidak_hadir || 0), 0);
-  const totalKosong      = rows.reduce((s, r) => s + (r.total_kosong || 0), 0);
+  const totalHadir      = rows.reduce((s, r) => s + (r.total_hadir || 0), 0);
+  const totalTerlambat  = rows.reduce((s, r) => s + (r.total_terlambat || 0), 0);
+  const totalTidakHadir = rows.reduce((s, r) => s + (r.total_tidak_hadir || 0), 0);
+  const totalKosong     = rows.reduce((s, r) => s + (r.total_kosong || 0), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
-      {/* Header — hidden when printing */}
-      <div className="no-print flex items-start justify-between">
+      {/* Header */}
+      <div className="no-print flex items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight">Laporan Kehadiran Guru</h1>
           <p className="text-sm text-muted-foreground mt-1">Rekap absensi harian, mingguan, dan bulanan</p>
         </div>
-        <Button onClick={() => window.print()} disabled={!rows.length} className="shrink-0">
-          <Printer className="h-4 w-4 mr-1.5" /> Export PDF
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={openSettings}>
+            <Settings className="h-4 w-4 mr-1.5" /> Pengaturan TTD
+          </Button>
+          <Button onClick={() => window.print()} disabled={!rows.length}>
+            <Printer className="h-4 w-4 mr-1.5" /> Export PDF
+          </Button>
+        </div>
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Pengaturan Tanda Tangan Laporan</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Jabatan</Label>
+              <Input
+                value={draft.jabatan}
+                onChange={(e) => setDraft((d) => ({ ...d, jabatan: e.target.value }))}
+                placeholder="Kepala Madrasah"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Nama Kepala Sekolah</Label>
+              <Input
+                value={draft.nama}
+                onChange={(e) => setDraft((d) => ({ ...d, nama: e.target.value }))}
+                placeholder="Nama lengkap"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>
+                NIP{" "}
+                <span className="text-muted-foreground font-normal text-xs">
+                  (kosongkan jika tidak ada)
+                </span>
+              </Label>
+              <Input
+                value={draft.nip}
+                onChange={(e) => setDraft((d) => ({ ...d, nip: e.target.value }))}
+                placeholder="— tidak ada NIP —"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSettingsOpen(false)}>Batal</Button>
+            <Button onClick={saveSettings}>Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Filter Panel */}
       <Card className="p-4 no-print">
@@ -105,7 +179,7 @@ function LaporanPage() {
         </Tabs>
       </Card>
 
-      {/* Report Output — visible on screen and in print */}
+      {/* Report Output */}
       <div className="print-area">
         <KopSurat periode={label || "—"} />
 
@@ -137,7 +211,9 @@ function LaporanPage() {
                 <tr>
                   <td colSpan={8} className="p-10 text-center">
                     <FileBarChart2 className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
-                    <p className="text-sm text-muted-foreground">Belum ada data. Pilih periode lalu klik <span className="font-semibold">Tampilkan</span>.</p>
+                    <p className="text-sm text-muted-foreground">
+                      Belum ada data. Pilih periode lalu klik <span className="font-semibold">Tampilkan</span>.
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -154,7 +230,6 @@ function LaporanPage() {
                       <td className="p-3 text-center text-muted-foreground">{r.total_kosong}</td>
                     </tr>
                   ))}
-                  {/* Summary row */}
                   <tr className="border-t bg-muted/40 font-bold">
                     <td className="p-3" colSpan={4}>Total</td>
                     <td className="p-3 text-center text-emerald-600">{totalHadir}</td>
@@ -170,14 +245,26 @@ function LaporanPage() {
 
         {/* Print Signature Block */}
         {rows.length > 0 && (
-          <div className="hidden print:block mt-12">
-            <div className="flex justify-end">
-              <div className="text-sm text-center w-72">
-                <p>Jember, {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</p>
-                <p className="mt-1">Administrator,</p>
+          <div className="hidden print:block mt-12 px-2">
+            <p className="text-sm mb-8">
+              {SCHOOL.kota},{" "}
+              {new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}
+            </p>
+            <div className="flex justify-between">
+              <div className="text-sm text-center w-60">
+                <p>Mengetahui,</p>
+                <p className="font-semibold">{settings.kepalaSekolah.jabatan}</p>
                 <div className="h-20" />
-                <p className="font-bold underline">{ADMIN_NAMA}</p>
-                <p>NIP. {ADMIN_NIP}</p>
+                <p className="font-bold underline">{settings.kepalaSekolah.nama}</p>
+                {settings.kepalaSekolah.nip && (
+                  <p>NIP. {settings.kepalaSekolah.nip}</p>
+                )}
+              </div>
+              <div className="text-sm text-center w-60">
+                <p>Yang Membuat,</p>
+                <p className="font-semibold">Operator Madrasah</p>
+                <div className="h-20" />
+                <p className="font-bold underline">{session?.nama ?? "Administrator"}</p>
               </div>
             </div>
           </div>

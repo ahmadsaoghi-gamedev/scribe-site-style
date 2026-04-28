@@ -79,10 +79,12 @@ function getAllRows(sheetName) {
     const obj = {};
     headers.forEach((header, idx) => {
       let val = row[idx];
-      
-      // Smart Normalization: 
-      // Handle Google Sheets boolean strings and trim whitespace from strings
-      if (typeof val === "string") {
+
+      // Sheets returns date cells as Date objects — normalize to YYYY-MM-DD string
+      // so all downstream string comparisons (tanggal >= dari, etc.) work correctly.
+      if (val instanceof Date) {
+        val = formatDate(val);
+      } else if (typeof val === "string") {
         val = normalizeString(val);
         if (/^true$/i.test(val)) val = true;
         else if (/^false$/i.test(val)) val = false;
@@ -91,7 +93,7 @@ function getAllRows(sheetName) {
       } else if (val === false) {
         val = false;
       }
-      
+
       obj[header] = val;
     });
     return obj;
