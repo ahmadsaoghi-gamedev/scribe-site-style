@@ -39,9 +39,17 @@ function handleGetJadwalHari(params) {
     guruMap[g.id] = g;
   });
 
+  // Deduplicate per jam_ke — ambil satu entri per slot jika sheet punya baris ganda
+  const seenJam = new Set();
   const jadwal = getAllRows(SHEETS.JADWAL)
     .filter((j) => String(j.id_kelas) === String(kelas_id) && j.hari === namaHari)
     .sort((a, b) => Number(a.jam_ke) - Number(b.jam_ke))
+    .filter((j) => {
+      const jam = Number(j.jam_ke);
+      if (seenJam.has(jam)) return false;
+      seenJam.add(jam);
+      return true;
+    })
     .map((j) => ({
       jam_ke: Number(j.jam_ke),
       guru_id: j.id_guru,
@@ -104,7 +112,16 @@ function handleSubmitAbsensi(body) {
   if (!tanggal || !kelas_id || !data) {
     return errorResponse("Semua field wajib diisi: tanggal, kelas_id, data.");
   }
-  if (!Array.isArray(data) || data.length === 0) {
+
+  // Proxy GET meng-encode array sebagai JSON string — parse kembali jika perlu
+  let parsedData = data;
+  if (typeof data === 'string') {
+    try { parsedData = JSON.parse(data); } catch (e) {
+      return errorResponse("Format data absensi tidak valid.");
+    }
+  }
+
+  if (!Array.isArray(parsedData) || parsedData.length === 0) {
     return errorResponse("Data absensi tidak boleh kosong.");
   }
 
@@ -142,8 +159,8 @@ function handleSubmitAbsensi(body) {
 
   // Validasi setiap data item
   const validStatuses = VALID_STATUS;
-  for (let i = 0; i < data.length; i++) {
-    const item = data[i];
+  for (let i = 0; i < parsedData.length; i++) {
+    const item = parsedData[i];
     if (!item.jadwal_id || !item.guru_id || !item.jam_ke || !item.status) {
       return errorResponse(`Data absensi ke-${i + 1} tidak lengkap.`);
     }
@@ -189,7 +206,7 @@ function handleSubmitAbsensi(body) {
     const submittedAt = new Date().toISOString();
 
     // Batch insert semua baris absensi
-    data.forEach((item) => {
+    parsedData.forEach((item) => {
       const row = {
         id: generateUUID(),
         tanggal: tanggal,

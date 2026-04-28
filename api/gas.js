@@ -56,9 +56,10 @@ export default async function handler(req, res) {
     // Merge everything into the GAS URL parameters
     // This is the CRITICAL fix for the 'stuck' issue: it ensures data survives
     // the inevitable 302 redirect from script.google.com -> script.googleusercontent.com
+    // Arrays and objects are JSON-encoded so GAS can parse them back correctly.
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
-        url.searchParams.set(key, String(value));
+        url.searchParams.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
       }
     });
 
