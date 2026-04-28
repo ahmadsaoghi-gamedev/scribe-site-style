@@ -39,15 +39,18 @@ function LaporanPage() {
   // Settings state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings>(() => getSchoolSettings());
-  const [draft, setDraft] = useState<SchoolSettings["kepalaSekolah"]>(settings.kepalaSekolah);
+  const [draft, setDraft] = useState<{ kepalaSekolah: SchoolSettings["kepalaSekolah"]; operatorNip: string }>({
+    kepalaSekolah: settings.kepalaSekolah,
+    operatorNip: settings.operatorNip,
+  });
 
   const openSettings = () => {
-    setDraft({ ...settings.kepalaSekolah });
+    setDraft({ kepalaSekolah: { ...settings.kepalaSekolah }, operatorNip: settings.operatorNip });
     setSettingsOpen(true);
   };
 
   const saveSettings = () => {
-    const next: SchoolSettings = { kepalaSekolah: draft };
+    const next: SchoolSettings = { kepalaSekolah: draft.kepalaSekolah, operatorNip: draft.operatorNip };
     saveSchoolSettings(next);
     setSettings(next);
     setSettingsOpen(false);
@@ -90,34 +93,48 @@ function LaporanPage() {
             <DialogTitle>Pengaturan Tanda Tangan Laporan</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kepala Sekolah</p>
             <div className="space-y-1.5">
               <Label>Jabatan</Label>
               <Input
-                value={draft.jabatan}
-                onChange={(e) => setDraft((d) => ({ ...d, jabatan: e.target.value }))}
+                value={draft.kepalaSekolah.jabatan}
+                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, jabatan: e.target.value } }))}
                 placeholder="Kepala Madrasah"
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Nama Kepala Sekolah</Label>
+              <Label>Nama</Label>
               <Input
-                value={draft.nama}
-                onChange={(e) => setDraft((d) => ({ ...d, nama: e.target.value }))}
+                value={draft.kepalaSekolah.nama}
+                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nama: e.target.value } }))}
                 placeholder="Nama lengkap"
               />
             </div>
             <div className="space-y-1.5">
               <Label>
                 NIP{" "}
-                <span className="text-muted-foreground font-normal text-xs">
-                  (kosongkan jika tidak ada)
-                </span>
+                <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span>
               </Label>
               <Input
-                value={draft.nip}
-                onChange={(e) => setDraft((d) => ({ ...d, nip: e.target.value }))}
+                value={draft.kepalaSekolah.nip}
+                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nip: e.target.value } }))}
                 placeholder="— tidak ada NIP —"
               />
+            </div>
+
+            <div className="border-t pt-4">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Operator / Yang Membuat</p>
+              <div className="space-y-1.5">
+                <Label>
+                  NIP Operator{" "}
+                  <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span>
+                </Label>
+                <Input
+                  value={draft.operatorNip}
+                  onChange={(e) => setDraft((d) => ({ ...d, operatorNip: e.target.value }))}
+                  placeholder="— tidak ada NIP —"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -265,6 +282,9 @@ function LaporanPage() {
                 <p className="font-semibold">Operator Madrasah</p>
                 <div className="h-20" />
                 <p className="font-bold underline">{session?.nama ?? "Administrator"}</p>
+                {settings.operatorNip && (
+                  <p>NIP. {settings.operatorNip}</p>
+                )}
               </div>
             </div>
           </div>

@@ -4,6 +4,7 @@ export type SchoolSettings = {
     nip: string;
     jabatan: string;
   };
+  operatorNip: string;
 };
 
 const KEY = "school_settings";
@@ -14,6 +15,7 @@ const DEFAULTS: SchoolSettings = {
     nip: "",
     jabatan: "Kepala Madrasah",
   },
+  operatorNip: "",
 };
 
 export function getSchoolSettings(): SchoolSettings {
