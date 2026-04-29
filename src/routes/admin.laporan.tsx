@@ -257,7 +257,7 @@ function LaporanPage() {
 
         {/* Summary Cards — visible on screen and in print */}
         {rows.length > 0 && (
-          <div className="grid grid-cols-4 gap-3 mb-5 print:gap-2 print:mb-4">
+          <div className="grid grid-cols-4 gap-3 mb-5 print:hidden">
             {STAT_CONFIG.map(({ key, label: statLabel, icon: Icon, color, bg }) => (
               <div
                 key={key}
