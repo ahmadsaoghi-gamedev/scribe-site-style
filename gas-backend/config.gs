@@ -3,7 +3,7 @@
 // ============================================================
 
 // Ganti dengan Spreadsheet ID Anda setelah membuat Google Sheet baru
-const SPREADSHEET_ID = "1Xr4hml4WFXDtTHAqd_AtvRyAb0ZlnLLOWVK1NGewqiQ";
+const SPREADSHEET_ID = "1c-YGP-qB7Q07fBLcdN2PzX4DkvyGImq61iB5yTmgo-M";
 
 // Nama-nama sheet dalam spreadsheet
 const SHEETS = {
