@@ -1,6 +1,5 @@
 import { mockHandler } from "./mock";
 import { getSession } from "./auth";
-import { pushLoginDebug } from "./loginDebug";
 
 export interface ApiResponse {
   success: boolean;
@@ -41,52 +40,30 @@ function normalizeAppsScriptUrl(rawUrl: string): string {
 }
 
 const GAS_URL = normalizeAppsScriptUrl(RAW_GAS_URL);
-const BUILD_ID = "20260421-1338"; // Tracking deployment freshness
 
 export const USE_MOCK = isLocalHost() && !GAS_URL;
 const USE_DIRECT_GAS = isLocalHost() && !!GAS_URL;
 
-/**
- * Robust request handler.
- * - Production (Vercel): POST to /api/gas proxy → proxy does GET to GAS
- * - Localhost with GAS_URL: GET directly to GAS (with query params)
- * - Localhost without GAS_URL: mock handler
- */
 async function performRequest<T>(
   action: string,
   _method: "GET" | "POST",
   payload: Record<string, any> = {}
 ): Promise<T> {
-  // Step 1: Mock check
   if (USE_MOCK) {
-    pushLoginDebug(`mock: ${action}`, payload);
     return mockHandler(action, "GET", payload) as T;
   }
 
-  // Everything from here is in a master try-catch
   try {
-    const isLocal = isLocalHost();
     const { token } = getSession() || {};
-    
-    pushLoginDebug(`perf: [${BUILD_ID}] start ${action}`, {
-      isLocal,
-      hasGasUrl: !!GAS_URL,
-      useDirectGas: USE_DIRECT_GAS,
-    });
 
     let fetchUrl: string;
     let fetchInit: RequestInit;
 
-    // Strategy:
-    // 1. If VITE_APPS_SCRIPT_URL is set → direct GET to Google Apps Script (works on localhost, Lovable preview, and any static host).
-    // 2. Otherwise → POST to /api/gas proxy (Vercel deployment with serverless function).
     if (USE_DIRECT_GAS) {
-      // --- DIRECT: GET to Google Apps Script ---
       const url = new URL(GAS_URL);
       url.searchParams.set("action", action);
       if (token) url.searchParams.set("token", token);
 
-      // Flatten payload into query params (GAS reads from e.parameter)
       for (const [key, value] of Object.entries(payload)) {
         if (value !== undefined && value !== null) {
           url.searchParams.set(key, String(value));
@@ -95,10 +72,7 @@ async function performRequest<T>(
 
       fetchUrl = url.toString();
       fetchInit = { method: "GET" };
-
-      pushLoginDebug(`perf: direct GET to GAS`);
     } else {
-      // --- FALLBACK: POST to /api/gas proxy ---
       const proxyUrl = new URL("/api/gas", window.location.origin);
       proxyUrl.searchParams.set("action", action);
       if (token) proxyUrl.searchParams.set("token", token);
@@ -109,81 +83,47 @@ async function performRequest<T>(
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       };
-
-      pushLoginDebug(`perf: proxy POST /api/gas`);
     }
 
-    // Step 3: Fetch with timeout
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      pushLoginDebug("perf: TIMEOUT fired after " + REQUEST_TIMEOUT_MS + "ms");
-      controller.abort();
-    }, REQUEST_TIMEOUT_MS);
-
-    pushLoginDebug("perf: fetching...");
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     let response: Response;
     try {
-      response = await fetch(fetchUrl, {
-        ...fetchInit,
-        signal: controller.signal,
-      });
+      response = await fetch(fetchUrl, { ...fetchInit, signal: controller.signal });
     } catch (fetchError: any) {
       window.clearTimeout(timeoutId);
-
       const isAbort = fetchError?.name === "AbortError";
       const msg = isAbort
         ? `Koneksi timeout (${REQUEST_TIMEOUT_MS / 1000}s). Server tidak merespons.`
         : `Gagal menghubungi server: ${fetchError?.message || "Unknown network error"}`;
-
-      pushLoginDebug(`perf: fetch failed`, { name: fetchError?.name, message: fetchError?.message });
       throw new ApiError(msg, isAbort ? 408 : 500);
     }
 
     window.clearTimeout(timeoutId);
 
-    pushLoginDebug(`perf: response ${response.status} ${response.statusText}`);
-
-    // Step 4: Parse response
     if (!response.ok) {
       let errorBody = "";
-      try {
-        errorBody = await response.text();
-      } catch { /* ignore */ }
-      const msg = `HTTP ${response.status}: ${response.statusText}`;
-      pushLoginDebug("perf: HTTP error", { status: response.status, body: errorBody.substring(0, 200) });
-      throw new ApiError(msg, response.status);
+      try { errorBody = await response.text(); } catch { /* ignore */ }
+      throw new ApiError(`HTTP ${response.status}: ${response.statusText}`, response.status);
     }
 
     let data: ApiResponse;
     try {
       data = await response.json();
-    } catch (parseError: any) {
-      pushLoginDebug("perf: JSON parse failed", parseError?.message);
+    } catch {
       throw new ApiError("Server mengembalikan respons yang tidak valid (bukan JSON).", 500);
     }
 
-    pushLoginDebug("perf: data received", { success: data.success, keys: Object.keys(data) });
-
     if (!data.success) {
-      pushLoginDebug("perf: logic error", data.message);
       throw new ApiError(data.message || "Operasi gagal.", 400, data);
     }
 
-    pushLoginDebug("perf: SUCCESS ✓");
     return data as T;
 
   } catch (error: any) {
-    // Re-throw ApiError as-is (already logged)
-    if (error instanceof ApiError) {
-      pushLoginDebug(`perf: ApiError thrown → ${error.message}`);
-      throw error;
-    }
-
-    // Unexpected error
-    const msg = error?.message || "Terjadi kesalahan tidak terduga.";
-    pushLoginDebug(`perf: UNEXPECTED ERROR`, { name: error?.name, message: msg, stack: error?.stack?.substring(0, 300) });
-    throw new ApiError(msg, 500);
+    if (error instanceof ApiError) throw error;
+    throw new ApiError(error?.message || "Terjadi kesalahan tidak terduga.", 500);
   }
 }
 
