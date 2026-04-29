@@ -12,11 +12,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Printer, FileBarChart2, Search, Settings } from "lucide-react";
-import { KopSurat } from "@/components/KopSurat";
-import { useLaporan, type PeriodeType } from "@/hooks/useLaporan";
-import { getSession, SCHOOL } from "@/lib/auth";
-import { useKelas } from "@/hooks/useKelas";
 import {
   Select,
   SelectContent,
@@ -24,6 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Printer,
+  FileBarChart2,
+  Search,
+  Settings,
+  CheckCircle2,
+  Clock,
+  XCircle,
+  MinusCircle,
+} from "lucide-react";
+import { KopSurat } from "@/components/KopSurat";
+import { useLaporan, type PeriodeType } from "@/hooks/useLaporan";
+import { getSession, SCHOOL } from "@/lib/auth";
+import { useKelas } from "@/hooks/useKelas";
 import { getSchoolSettings, saveSchoolSettings, type SchoolSettings } from "@/lib/schoolSettings";
 import { SmartLoader } from "@/components/SmartLoader";
 import { toast } from "sonner";
@@ -31,6 +40,41 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/admin/laporan")({
   component: LaporanPage,
 });
+
+const STAT_CONFIG = [
+  {
+    key: "hadir"       as const,
+    label: "Hadir",
+    icon: CheckCircle2,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50 border-emerald-200",
+    printColor: "#059669",
+  },
+  {
+    key: "terlambat"   as const,
+    label: "Terlambat",
+    icon: Clock,
+    color: "text-amber-500",
+    bg: "bg-amber-50 border-amber-200",
+    printColor: "#d97706",
+  },
+  {
+    key: "tidak_hadir" as const,
+    label: "Tidak Hadir",
+    icon: XCircle,
+    color: "text-red-500",
+    bg: "bg-red-50 border-red-200",
+    printColor: "#ef4444",
+  },
+  {
+    key: "kosong"      as const,
+    label: "Kosong",
+    icon: MinusCircle,
+    color: "text-slate-400",
+    bg: "bg-slate-50 border-slate-200",
+    printColor: "#94a3b8",
+  },
+] as const;
 
 function LaporanPage() {
   const session = useMemo(() => getSession(), []);
@@ -46,7 +90,6 @@ function LaporanPage() {
   const { kelas: kelasList } = useKelas();
   const [selectedKelasId, setSelectedKelasId] = useState<string>("__all__");
 
-  // Settings state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settings, setSettings] = useState<SchoolSettings>(() => getSchoolSettings());
   const [draft, setDraft] = useState<{ kepalaSekolah: SchoolSettings["kepalaSekolah"]; operatorNip: string }>({
@@ -70,15 +113,22 @@ function LaporanPage() {
   const handleFetch = () => {
     const kelasId = selectedKelasId === "__all__" ? undefined : selectedKelasId;
     const namaKelas = kelasList.find((k) => k.id === kelasId)?.nama_kelas;
-    if (tab === "harian") fetch({ periodeType: "harian", tanggal, kelas_id: kelasId, nama_kelas: namaKelas });
+    if (tab === "harian")        fetch({ periodeType: "harian", tanggal, kelas_id: kelasId, nama_kelas: namaKelas });
     else if (tab === "mingguan") fetch({ periodeType: "mingguan", dari, sampai, kelas_id: kelasId, nama_kelas: namaKelas });
-    else fetch({ periodeType: "bulanan", bulan, tahun, kelas_id: kelasId, nama_kelas: namaKelas });
+    else                         fetch({ periodeType: "bulanan", bulan, tahun, kelas_id: kelasId, nama_kelas: namaKelas });
   };
 
   const totalHadir      = rows.reduce((s, r) => s + (r.total_hadir || 0), 0);
   const totalTerlambat  = rows.reduce((s, r) => s + (r.total_terlambat || 0), 0);
   const totalTidakHadir = rows.reduce((s, r) => s + (r.total_tidak_hadir || 0), 0);
   const totalKosong     = rows.reduce((s, r) => s + (r.total_kosong || 0), 0);
+
+  const statTotals = {
+    hadir: totalHadir,
+    terlambat: totalTerlambat,
+    tidak_hadir: totalTidakHadir,
+    kosong: totalKosong,
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700">
@@ -108,44 +158,21 @@ function LaporanPage() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Kepala Sekolah</p>
             <div className="space-y-1.5">
               <Label>Jabatan</Label>
-              <Input
-                value={draft.kepalaSekolah.jabatan}
-                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, jabatan: e.target.value } }))}
-                placeholder="Kepala Madrasah"
-              />
+              <Input value={draft.kepalaSekolah.jabatan} onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, jabatan: e.target.value } }))} placeholder="Kepala Madrasah" />
             </div>
             <div className="space-y-1.5">
               <Label>Nama</Label>
-              <Input
-                value={draft.kepalaSekolah.nama}
-                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nama: e.target.value } }))}
-                placeholder="Nama lengkap"
-              />
+              <Input value={draft.kepalaSekolah.nama} onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nama: e.target.value } }))} placeholder="Nama lengkap" />
             </div>
             <div className="space-y-1.5">
-              <Label>
-                NIP{" "}
-                <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span>
-              </Label>
-              <Input
-                value={draft.kepalaSekolah.nip}
-                onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nip: e.target.value } }))}
-                placeholder="— tidak ada NIP —"
-              />
+              <Label>NIP <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span></Label>
+              <Input value={draft.kepalaSekolah.nip} onChange={(e) => setDraft((d) => ({ ...d, kepalaSekolah: { ...d.kepalaSekolah, nip: e.target.value } }))} placeholder="— tidak ada NIP —" />
             </div>
-
             <div className="border-t pt-4">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Operator / Yang Membuat</p>
               <div className="space-y-1.5">
-                <Label>
-                  NIP Operator{" "}
-                  <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span>
-                </Label>
-                <Input
-                  value={draft.operatorNip}
-                  onChange={(e) => setDraft((d) => ({ ...d, operatorNip: e.target.value }))}
-                  placeholder="— tidak ada NIP —"
-                />
+                <Label>NIP Operator <span className="text-muted-foreground font-normal text-xs">(kosongkan jika tidak ada)</span></Label>
+                <Input value={draft.operatorNip} onChange={(e) => setDraft((d) => ({ ...d, operatorNip: e.target.value }))} placeholder="— tidak ada NIP —" />
               </div>
             </div>
           </div>
@@ -181,7 +208,7 @@ function LaporanPage() {
             </div>
           </div>
 
-          <TabsContent value="harian" className="mt-4 flex gap-3 items-end flex-wrap">
+          <TabsContent value="harian" className="mt-0 flex gap-3 items-end flex-wrap">
             <div className="space-y-1.5">
               <Label htmlFor="laporan-tanggal">Tanggal</Label>
               <Input id="laporan-tanggal" type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="w-44" />
@@ -192,7 +219,7 @@ function LaporanPage() {
             </Button>
           </TabsContent>
 
-          <TabsContent value="mingguan" className="mt-4 flex gap-3 items-end flex-wrap">
+          <TabsContent value="mingguan" className="mt-0 flex gap-3 items-end flex-wrap">
             <div className="space-y-1.5">
               <Label htmlFor="laporan-dari">Dari</Label>
               <Input id="laporan-dari" type="date" value={dari} onChange={(e) => setDari(e.target.value)} className="w-44" />
@@ -207,7 +234,7 @@ function LaporanPage() {
             </Button>
           </TabsContent>
 
-          <TabsContent value="bulanan" className="mt-4 flex gap-3 items-end flex-wrap">
+          <TabsContent value="bulanan" className="mt-0 flex gap-3 items-end flex-wrap">
             <div className="space-y-1.5">
               <Label htmlFor="laporan-bulan">Bulan (01–12)</Label>
               <Input id="laporan-bulan" value={bulan} onChange={(e) => setBulan(e.target.value)} className="w-20" maxLength={2} />
@@ -228,19 +255,40 @@ function LaporanPage() {
       <div className="print-area">
         <KopSurat periode={label || "—"} />
 
+        {/* Summary Cards — visible on screen and in print */}
+        {rows.length > 0 && (
+          <div className="grid grid-cols-4 gap-3 mb-5 print:gap-2 print:mb-4">
+            {STAT_CONFIG.map(({ key, label: statLabel, icon: Icon, color, bg }) => (
+              <div
+                key={key}
+                className={`rounded-xl border p-4 flex flex-col items-center gap-1 ${bg} print:rounded-lg print:p-2`}
+              >
+                <Icon className={`h-5 w-5 ${color} print:h-4 print:w-4`} />
+                <span className={`text-2xl font-black ${color} print:text-xl`}>
+                  {statTotals[key]}
+                </span>
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide print:text-[9px]">
+                  {statLabel}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Table */}
         <Card className="overflow-x-auto print:shadow-none print:border-none print:rounded-none">
           <table className="w-full text-sm min-w-[820px] print:min-w-0">
-            <thead className="bg-muted/60 print:bg-transparent">
-              <tr className="border-b">
+            <thead>
+              <tr className="bg-muted/60 print:bg-transparent border-b">
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground w-10">No</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Nama Guru</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">NIP</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Kelas</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Mapel</th>
                 <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-emerald-600">Hadir</th>
-                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-amber-600">Terlambat</th>
-                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-destructive">Tidak Hadir</th>
-                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-muted-foreground">Kosong</th>
+                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-amber-500">Terlambat</th>
+                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-red-500">Tidak Hadir</th>
+                <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-slate-400">Kosong</th>
               </tr>
             </thead>
             <tbody>
@@ -266,24 +314,33 @@ function LaporanPage() {
                 <>
                   {rows.map((r, i) => (
                     <tr key={i} className="border-t hover:bg-muted/20 transition-colors">
-                      <td className="p-3 text-muted-foreground">{i + 1}</td>
+                      <td className="p-3 text-muted-foreground text-center">{i + 1}</td>
                       <td className="p-3 font-semibold">{r.nama_guru}</td>
-                      <td className="p-3 font-mono text-xs">{r.nip || "—"}</td>
-                      <td className="p-3 text-xs">{r.nama_kelas || "—"}</td>
-                      <td className="p-3">{r.mapel}</td>
-                      <td className="p-3 text-center font-semibold text-emerald-600">{r.total_hadir}</td>
-                      <td className="p-3 text-center font-semibold text-amber-600">{r.total_terlambat}</td>
-                      <td className="p-3 text-center font-semibold text-destructive">{r.total_tidak_hadir}</td>
-                      <td className="p-3 text-center text-muted-foreground">{r.total_kosong}</td>
+                      <td className="p-3 font-mono text-xs text-muted-foreground">{r.nip || "—"}</td>
+                      <td className="p-3 text-xs font-medium">{r.nama_kelas || "—"}</td>
+                      <td className="p-3 text-sm">{r.mapel}</td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block min-w-[2rem] font-black text-base ${r.total_hadir > 0 ? "text-emerald-600" : "text-muted-foreground/40"}`}>
+                          {r.total_hadir}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block min-w-[2rem] font-black text-base ${r.total_terlambat > 0 ? "text-amber-500" : "text-muted-foreground/40"}`}>
+                          {r.total_terlambat}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block min-w-[2rem] font-black text-base ${r.total_tidak_hadir > 0 ? "text-red-500" : "text-muted-foreground/40"}`}>
+                          {r.total_tidak_hadir}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className={`inline-block min-w-[2rem] font-black text-base ${r.total_kosong > 0 ? "text-slate-500" : "text-muted-foreground/40"}`}>
+                          {r.total_kosong}
+                        </span>
+                      </td>
                     </tr>
                   ))}
-                  <tr className="border-t bg-muted/40 font-bold">
-                    <td className="p-3" colSpan={4}>Total</td>
-                    <td className="p-3 text-center text-emerald-600">{totalHadir}</td>
-                    <td className="p-3 text-center text-amber-600">{totalTerlambat}</td>
-                    <td className="p-3 text-center text-destructive">{totalTidakHadir}</td>
-                    <td className="p-3 text-center text-muted-foreground">{totalKosong}</td>
-                  </tr>
                 </>
               )}
             </tbody>
@@ -303,18 +360,14 @@ function LaporanPage() {
                 <p className="font-semibold">{settings.kepalaSekolah.jabatan}</p>
                 <div className="h-20" />
                 <p className="font-bold underline">{settings.kepalaSekolah.nama}</p>
-                {settings.kepalaSekolah.nip && (
-                  <p>NIP. {settings.kepalaSekolah.nip}</p>
-                )}
+                {settings.kepalaSekolah.nip && <p>NIP. {settings.kepalaSekolah.nip}</p>}
               </div>
               <div className="text-sm text-center w-60">
                 <p>Yang Membuat,</p>
                 <p className="font-semibold">Operator Madrasah</p>
                 <div className="h-20" />
                 <p className="font-bold underline">{session?.nama ?? "Administrator"}</p>
-                {settings.operatorNip && (
-                  <p>NIP. {settings.operatorNip}</p>
-                )}
+                {settings.operatorNip && <p>NIP. {settings.operatorNip}</p>}
               </div>
             </div>
           </div>
