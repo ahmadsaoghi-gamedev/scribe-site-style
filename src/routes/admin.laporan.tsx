@@ -16,6 +16,14 @@ import { Printer, FileBarChart2, Search, Settings } from "lucide-react";
 import { KopSurat } from "@/components/KopSurat";
 import { useLaporan, type PeriodeType } from "@/hooks/useLaporan";
 import { getSession, SCHOOL } from "@/lib/auth";
+import { useKelas } from "@/hooks/useKelas";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getSchoolSettings, saveSchoolSettings, type SchoolSettings } from "@/lib/schoolSettings";
 import { SmartLoader } from "@/components/SmartLoader";
 import { toast } from "sonner";
@@ -35,6 +43,8 @@ function LaporanPage() {
   const [tahun, setTahun] = useState(String(new Date().getFullYear()));
 
   const { rows, label, isLoading, fetch } = useLaporan();
+  const { kelas: kelasList } = useKelas();
+  const [selectedKelasId, setSelectedKelasId] = useState<string>("__all__");
 
   // Settings state
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -58,9 +68,11 @@ function LaporanPage() {
   };
 
   const handleFetch = () => {
-    if (tab === "harian") fetch({ periodeType: "harian", tanggal });
-    else if (tab === "mingguan") fetch({ periodeType: "mingguan", dari, sampai });
-    else fetch({ periodeType: "bulanan", bulan, tahun });
+    const kelasId = selectedKelasId === "__all__" ? undefined : selectedKelasId;
+    const namaKelas = kelasList.find((k) => k.id === kelasId)?.nama_kelas;
+    if (tab === "harian") fetch({ periodeType: "harian", tanggal, kelas_id: kelasId, nama_kelas: namaKelas });
+    else if (tab === "mingguan") fetch({ periodeType: "mingguan", dari, sampai, kelas_id: kelasId, nama_kelas: namaKelas });
+    else fetch({ periodeType: "bulanan", bulan, tahun, kelas_id: kelasId, nama_kelas: namaKelas });
   };
 
   const totalHadir      = rows.reduce((s, r) => s + (r.total_hadir || 0), 0);
@@ -147,11 +159,27 @@ function LaporanPage() {
       {/* Filter Panel */}
       <Card className="p-4 no-print">
         <Tabs value={tab} onValueChange={(v) => setTab(v as PeriodeType)}>
-          <TabsList>
-            <TabsTrigger value="harian">Harian</TabsTrigger>
-            <TabsTrigger value="mingguan">Mingguan</TabsTrigger>
-            <TabsTrigger value="bulanan">Bulanan</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+            <TabsList>
+              <TabsTrigger value="harian">Harian</TabsTrigger>
+              <TabsTrigger value="mingguan">Mingguan</TabsTrigger>
+              <TabsTrigger value="bulanan">Bulanan</TabsTrigger>
+            </TabsList>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs shrink-0">Kelas</Label>
+              <Select value={selectedKelasId} onValueChange={setSelectedKelasId}>
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue placeholder="Semua Kelas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Semua Kelas</SelectItem>
+                  {kelasList.map((k) => (
+                    <SelectItem key={k.id} value={k.id}>{k.nama_kelas}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
 
           <TabsContent value="harian" className="mt-4 flex gap-3 items-end flex-wrap">
             <div className="space-y-1.5">
@@ -201,12 +229,13 @@ function LaporanPage() {
         <KopSurat periode={label || "—"} />
 
         <Card className="overflow-x-auto print:shadow-none print:border-none print:rounded-none">
-          <table className="w-full text-sm min-w-[720px] print:min-w-0">
+          <table className="w-full text-sm min-w-[820px] print:min-w-0">
             <thead className="bg-muted/60 print:bg-transparent">
               <tr className="border-b">
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground w-10">No</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Nama Guru</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">NIP</th>
+                <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Kelas</th>
                 <th className="p-3 text-left font-semibold text-xs uppercase tracking-wide text-muted-foreground">Mapel</th>
                 <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-emerald-600">Hadir</th>
                 <th className="p-3 text-center font-semibold text-xs uppercase tracking-wide text-amber-600">Terlambat</th>
@@ -217,7 +246,7 @@ function LaporanPage() {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center">
+                  <td colSpan={9} className="p-10 text-center">
                     <div className="inline-flex flex-col items-center gap-2">
                       <SmartLoader size="lg" />
                       <span className="text-sm text-muted-foreground">Mengambil data laporan…</span>
@@ -226,7 +255,7 @@ function LaporanPage() {
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-10 text-center">
+                  <td colSpan={9} className="p-10 text-center">
                     <FileBarChart2 className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
                     <p className="text-sm text-muted-foreground">
                       Belum ada data. Pilih periode lalu klik <span className="font-semibold">Tampilkan</span>.
@@ -240,6 +269,7 @@ function LaporanPage() {
                       <td className="p-3 text-muted-foreground">{i + 1}</td>
                       <td className="p-3 font-semibold">{r.nama_guru}</td>
                       <td className="p-3 font-mono text-xs">{r.nip || "—"}</td>
+                      <td className="p-3 text-xs">{r.nama_kelas || "—"}</td>
                       <td className="p-3">{r.mapel}</td>
                       <td className="p-3 text-center font-semibold text-emerald-600">{r.total_hadir}</td>
                       <td className="p-3 text-center font-semibold text-amber-600">{r.total_terlambat}</td>

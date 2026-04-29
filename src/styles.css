@@ -179,8 +179,13 @@
 @media print {
   body * { visibility: hidden; }
   .print-area, .print-area * { visibility: visible; }
-  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 1cm; }
+  .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
   .no-print { display: none !important; }
+
+  /* Tabel laporan: font & padding lebih kecil agar muat di kertas */
+  .print-area table { font-size: 10px; width: 100%; }
+  .print-area th,
+  .print-area td { padding: 4px 6px !important; }
 }
 
 @media print and (max-width: 640px) {
@@ -188,7 +193,7 @@
 }
 
 @page {
-  size: A4;
+  size: A4 landscape;
   margin: 1.5cm;
 }
 

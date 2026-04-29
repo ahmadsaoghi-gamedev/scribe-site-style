@@ -6,6 +6,7 @@ export type LaporanRow = {
   nama_guru: string;
   nip: string;
   mapel: string;
+  nama_kelas: string;
   total_hadir: number;
   total_terlambat: number;
   total_tidak_hadir: number;
@@ -15,9 +16,9 @@ export type LaporanRow = {
 export type PeriodeType = "harian" | "mingguan" | "bulanan";
 
 export type LaporanParams =
-  | { periodeType: "harian"; tanggal: string }
-  | { periodeType: "mingguan"; dari: string; sampai: string }
-  | { periodeType: "bulanan"; bulan: string; tahun: string };
+  | { periodeType: "harian"; tanggal: string; kelas_id?: string; nama_kelas?: string }
+  | { periodeType: "mingguan"; dari: string; sampai: string; kelas_id?: string; nama_kelas?: string }
+  | { periodeType: "bulanan"; bulan: string; tahun: string; kelas_id?: string; nama_kelas?: string };
 
 /** Backend response: successResponse(data) → { success, data: LaporanRow[] } */
 interface LaporanResponse extends ApiResponse {
@@ -54,9 +55,10 @@ export function useLaporan() {
       setRows(data);
 
       // Compose human-readable period label for report header
-      if (params.periodeType === "harian") setLabel(`Harian — ${params.tanggal}`);
-      else if (params.periodeType === "mingguan") setLabel(`Mingguan — ${params.dari} s/d ${params.sampai}`);
-      else setLabel(`Bulanan — ${params.bulan}/${params.tahun}`);
+      const kelasSuffix = params.nama_kelas ? ` — Kelas ${params.nama_kelas}` : " — Semua Kelas";
+      if (params.periodeType === "harian") setLabel(`Harian — ${params.tanggal}${kelasSuffix}`);
+      else if (params.periodeType === "mingguan") setLabel(`Mingguan — ${params.dari} s/d ${params.sampai}${kelasSuffix}`);
+      else setLabel(`Bulanan — ${params.bulan}/${params.tahun}${kelasSuffix}`);
 
       if (data.length === 0) toast.info("Tidak ada data untuk periode yang dipilih.");
     } catch (error: any) {
